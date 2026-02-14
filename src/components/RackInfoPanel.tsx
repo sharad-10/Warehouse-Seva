@@ -34,13 +34,42 @@ export default function RackInfoPanel() {
   const rack = racks.find((r) => r.id === selectedRack);
   if (!rack) return null;
 
+  const [stockInput, setStockInput] = React.useState(rack.stock.toString());
+
+  React.useEffect(() => {
+    setStockInput(rack.stock.toString());
+  }, [rack.stock]);
+
   const levels = Math.ceil(rack.stock / rack.bagsPerLevel);
   const width = rack.width ?? 1.5;
   const depth = rack.depth ?? 1;
 
+  /* =========================
+     💰 TOTAL VALUE
+  ========================= */
+  const totalValue = rack.stock * (rack.rate || 0);
+
+  /* =========================
+     ⚠ EXPIRY LOGIC
+  ========================= */
+  const today = new Date();
+  const expiryDate = rack.expiryDate ? new Date(rack.expiryDate) : null;
+
+  let daysToExpiry: number | null = null;
+  let isNearExpiry = false;
+  let isExpired = false;
+
+  if (expiryDate) {
+    const diff = expiryDate.getTime() - today.getTime();
+    daysToExpiry = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+    if (daysToExpiry < 0) isExpired = true;
+    else if (daysToExpiry <= 7) isNearExpiry = true;
+  }
+
   return (
     <View style={styles.panel}>
-      {/* Header */}
+      {/* HEADER */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           style={styles.collapseBtn}
@@ -65,120 +94,9 @@ export default function RackInfoPanel() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {/* DETAILS */}
-          <Text style={styles.sectionTitle}>Details</Text>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Entry Date</Text>
-            <TouchableOpacity
-              style={styles.dateInput}
-              onPress={() => setShowEntryPicker(true)}
-            >
-              <Text>{rack.entryDate || "Select Date"}</Text>
-            </TouchableOpacity>
-
-            {showEntryPicker && (
-              <DateTimePicker
-                value={rack.entryDate ? new Date(rack.entryDate) : new Date()}
-                mode="date"
-                onChange={(e, date) => {
-                  setShowEntryPicker(false);
-                  if (date) {
-                    updateRackDetails(rack.id, {
-                      entryDate: formatDate(date),
-                    });
-                  }
-                }}
-              />
-            )}
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Expiry Date</Text>
-            <TouchableOpacity
-              style={styles.dateInput}
-              onPress={() => setShowExpiryPicker(true)}
-            >
-              <Text>{rack.expiryDate || "Select Date"}</Text>
-            </TouchableOpacity>
-
-            {showExpiryPicker && (
-              <DateTimePicker
-                value={rack.expiryDate ? new Date(rack.expiryDate) : new Date()}
-                mode="date"
-                minimumDate={new Date()}
-                onChange={(e, date) => {
-                  setShowExpiryPicker(false);
-                  if (date) {
-                    updateRackDetails(rack.id, {
-                      expiryDate: formatDate(date),
-                    });
-                  }
-                }}
-              />
-            )}
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Rate (₹ per bag)</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              value={rack.rate?.toString() || ""}
-              onChangeText={(text) =>
-                updateRackDetails(rack.id, {
-                  rate: Number(text) || 0,
-                })
-              }
-            />
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* STOCK */}
-          <Text style={styles.sectionTitle}>Stock</Text>
-
-          <Text>Stock: {rack.stock}</Text>
-          <Text>Bags / Level: {rack.bagsPerLevel}</Text>
-          <Text>Levels Used: {levels}</Text>
-
-          <View style={styles.row}>
-            <TouchableOpacity
-              style={styles.primaryBtn}
-              onPress={() => addStock(rack.id)}
-            >
-              <Text style={styles.btnText}>+ Add</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.primaryBtn}
-              onPress={() => removeStock(rack.id)}
-            >
-              <Text style={styles.btnText}>- Remove</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.row}>
-            <TouchableOpacity
-              style={styles.smallBtn}
-              onPress={() =>
-                updateBagsPerLevel(rack.id, Math.max(rack.bagsPerLevel - 1, 1))
-              }
-            >
-              <Text>- Bags / Level</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.smallBtn}
-              onPress={() => updateBagsPerLevel(rack.id, rack.bagsPerLevel + 1)}
-            >
-              <Text>+ Bags / Level</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* SIZE */}
-          {editMode && (
+          {editMode ? (
             <>
+              {/* SIZE (EDIT MODE) */}
               <View style={styles.divider} />
               <Text style={styles.sectionTitle}>Rack Size</Text>
 
@@ -217,16 +135,170 @@ export default function RackInfoPanel() {
                 </TouchableOpacity>
               </View>
             </>
+          ) : (
+            <>
+              {/* DETAILS */}
+              <Text style={styles.sectionTitle}>Details</Text>
+
+              {/* ENTRY DATE */}
+              <View style={styles.field}>
+                <Text style={styles.label}>Entry Date</Text>
+                <TouchableOpacity
+                  style={styles.dateInput}
+                  onPress={() => setShowEntryPicker(true)}
+                >
+                  <Text>{rack.entryDate || "Select Date"}</Text>
+                </TouchableOpacity>
+
+                {showEntryPicker && (
+                  <DateTimePicker
+                    value={
+                      rack.entryDate ? new Date(rack.entryDate) : new Date()
+                    }
+                    mode="date"
+                    onChange={(e, date) => {
+                      setShowEntryPicker(false);
+                      if (date) {
+                        updateRackDetails(rack.id, {
+                          entryDate: formatDate(date),
+                        });
+                      }
+                    }}
+                  />
+                )}
+              </View>
+
+              {/* EXPIRY DATE */}
+              <View style={styles.field}>
+                <Text style={styles.label}>Expiry Date</Text>
+                <TouchableOpacity
+                  style={styles.dateInput}
+                  onPress={() => setShowExpiryPicker(true)}
+                >
+                  <Text>{rack.expiryDate || "Select Date"}</Text>
+                </TouchableOpacity>
+
+                {showExpiryPicker && (
+                  <DateTimePicker
+                    value={
+                      rack.expiryDate ? new Date(rack.expiryDate) : new Date()
+                    }
+                    mode="date"
+                    minimumDate={new Date()}
+                    onChange={(e, date) => {
+                      setShowExpiryPicker(false);
+                      if (date) {
+                        updateRackDetails(rack.id, {
+                          expiryDate: formatDate(date),
+                        });
+                      }
+                    }}
+                  />
+                )}
+
+                {expiryDate && (
+                  <View
+                    style={[
+                      styles.expiryBox,
+                      isExpired
+                        ? styles.expired
+                        : isNearExpiry
+                          ? styles.nearExpiry
+                          : styles.safe,
+                    ]}
+                  >
+                    <Text style={styles.expiryText}>
+                      {isExpired
+                        ? "⚠ EXPIRED"
+                        : isNearExpiry
+                          ? `⚠ Expiring in ${daysToExpiry} days`
+                          : `Valid (${daysToExpiry} days left)`}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* RATE */}
+              <View style={styles.field}>
+                <Text style={styles.label}>Rate (₹ per bag)</Text>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  value={rack.rate?.toString() || ""}
+                  onChangeText={(text) =>
+                    updateRackDetails(rack.id, {
+                      rate: Number(text) || 0,
+                    })
+                  }
+                />
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* STOCK */}
+              <Text style={styles.sectionTitle}>Stock</Text>
+
+              <Text>Current Stock: {rack.stock}</Text>
+              <Text>Total Value: ₹ {totalValue.toFixed(2)}</Text>
+              <Text>Bags / Level: {rack.bagsPerLevel}</Text>
+              <Text>Levels Used: {levels}</Text>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Set Stock Quantity</Text>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  value={stockInput}
+                  onChangeText={setStockInput}
+                  placeholder="Enter quantity"
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={() => {
+                  const newValue = Number(stockInput);
+                  if (!isNaN(newValue) && newValue >= 0) {
+                    updateRackDetails(rack.id, { stock: newValue });
+                  }
+                }}
+              >
+                <Text style={styles.btnText}>Update Stock</Text>
+              </TouchableOpacity>
+
+              <View style={styles.row}>
+                <TouchableOpacity
+                  style={styles.smallBtn}
+                  onPress={() =>
+                    updateBagsPerLevel(
+                      rack.id,
+                      Math.max(rack.bagsPerLevel - 1, 1),
+                    )
+                  }
+                >
+                  <Text>- Bags / Level</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.smallBtn}
+                  onPress={() =>
+                    updateBagsPerLevel(rack.id, rack.bagsPerLevel + 1)
+                  }
+                >
+                  <Text>+ Bags / Level</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.divider} />
+
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() => deleteRack(rack.id)}
+              >
+                <Text style={styles.deleteText}>Remove Rack</Text>
+              </TouchableOpacity>
+            </>
           )}
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={() => deleteRack(rack.id)}
-          >
-            <Text style={styles.deleteText}>Remove Rack</Text>
-          </TouchableOpacity>
         </ScrollView>
       )}
     </View>
@@ -261,9 +333,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
 
-  collapseText: {
-    fontWeight: "bold",
-  },
+  collapseText: { fontWeight: "bold" },
 
   label: {
     fontSize: 12,
@@ -279,9 +349,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
 
-  field: {
-    marginTop: 12,
-  },
+  field: { marginTop: 12 },
 
   sectionTitle: {
     fontWeight: "bold",
@@ -303,7 +371,8 @@ const styles = StyleSheet.create({
 
   primaryBtn: {
     backgroundColor: "#4a90e2",
-    padding: 10,
+    padding: 12,
+    marginTop: 10,
     borderRadius: 10,
   },
 
@@ -336,5 +405,27 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     backgroundColor: "#fafafa",
+  },
+
+  expiryBox: {
+    marginTop: 8,
+    padding: 8,
+    borderRadius: 8,
+  },
+
+  expired: {
+    backgroundColor: "#ffdddd",
+  },
+
+  nearExpiry: {
+    backgroundColor: "#fff3cd",
+  },
+
+  safe: {
+    backgroundColor: "#e8f5e9",
+  },
+
+  expiryText: {
+    fontWeight: "bold",
   },
 });

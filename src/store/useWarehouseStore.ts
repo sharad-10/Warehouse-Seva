@@ -37,15 +37,7 @@ type WarehouseState = {
 
   updateRackName: (id: string, name: string) => void;
 
-  updateRackDetails: (
-    id: string,
-    data: Partial<{
-      name: string;
-      entryDate: string;
-      expiryDate: string;
-      rate: number;
-    }>,
-  ) => void;
+  updateRackDetails: (id: string, data: Partial<Rack>) => void;
 
   toggleEditMode: () => void;
 };
