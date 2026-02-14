@@ -1,6 +1,7 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import React from "react";
 import {
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,22 +16,18 @@ export default function RackInfoPanel() {
 
   const updateRackName = useWarehouseStore((s) => s.updateRackName);
   const updateRackDetails = useWarehouseStore((s) => s.updateRackDetails);
-
   const addStock = useWarehouseStore((s) => s.addStock);
   const removeStock = useWarehouseStore((s) => s.removeStock);
   const updateBagsPerLevel = useWarehouseStore((s) => s.updateBagsPerLevel);
   const deleteRack = useWarehouseStore((s) => s.deleteRack);
   const updateRackSize = useWarehouseStore((s) => s.updateRackSize);
-
   const editMode = useWarehouseStore((s) => s.editMode);
 
   const [collapsed, setCollapsed] = React.useState(false);
   const [showEntryPicker, setShowEntryPicker] = React.useState(false);
   const [showExpiryPicker, setShowExpiryPicker] = React.useState(false);
 
-  const formatDate = (date: Date) => {
-    return date.toISOString().split("T")[0];
-  };
+  const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
   if (!selectedRack) return null;
 
@@ -38,13 +35,12 @@ export default function RackInfoPanel() {
   if (!rack) return null;
 
   const levels = Math.ceil(rack.stock / rack.bagsPerLevel);
-
   const width = rack.width ?? 1.5;
   const depth = rack.depth ?? 1;
 
   return (
     <View style={styles.panel}>
-      {/* ================= HEADER ================= */}
+      {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           style={styles.collapseBtn}
@@ -53,24 +49,27 @@ export default function RackInfoPanel() {
           <Text style={styles.collapseText}>{collapsed ? "▼" : "▲"}</Text>
         </TouchableOpacity>
 
-        <View style={styles.nameContainer}>
+        <View style={{ flex: 1 }}>
           <Text style={styles.label}>Rack Name</Text>
           <TextInput
             style={styles.input}
             value={rack.name}
             onChangeText={(text) => updateRackName(rack.id, text.trimStart())}
             placeholder="Enter rack name"
-            maxLength={25}
           />
         </View>
       </View>
 
       {!collapsed && (
-        <>
-          {/* ================= DETAILS ================= */}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        >
+          {/* DETAILS */}
+          <Text style={styles.sectionTitle}>Details</Text>
+
           <View style={styles.field}>
             <Text style={styles.label}>Entry Date</Text>
-
             <TouchableOpacity
               style={styles.dateInput}
               onPress={() => setShowEntryPicker(true)}
@@ -82,13 +81,11 @@ export default function RackInfoPanel() {
               <DateTimePicker
                 value={rack.entryDate ? new Date(rack.entryDate) : new Date()}
                 mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
+                onChange={(e, date) => {
                   setShowEntryPicker(false);
-
-                  if (event.type === "set" && selectedDate) {
+                  if (date) {
                     updateRackDetails(rack.id, {
-                      entryDate: formatDate(selectedDate),
+                      entryDate: formatDate(date),
                     });
                   }
                 }}
@@ -98,7 +95,6 @@ export default function RackInfoPanel() {
 
           <View style={styles.field}>
             <Text style={styles.label}>Expiry Date</Text>
-
             <TouchableOpacity
               style={styles.dateInput}
               onPress={() => setShowExpiryPicker(true)}
@@ -110,14 +106,12 @@ export default function RackInfoPanel() {
               <DateTimePicker
                 value={rack.expiryDate ? new Date(rack.expiryDate) : new Date()}
                 mode="date"
-                display="default"
                 minimumDate={new Date()}
-                onChange={(event, selectedDate) => {
+                onChange={(e, date) => {
                   setShowExpiryPicker(false);
-
-                  if (event.type === "set" && selectedDate) {
+                  if (date) {
                     updateRackDetails(rack.id, {
-                      expiryDate: formatDate(selectedDate),
+                      expiryDate: formatDate(date),
                     });
                   }
                 }}
@@ -129,37 +123,38 @@ export default function RackInfoPanel() {
             <Text style={styles.label}>Rate (₹ per bag)</Text>
             <TextInput
               style={styles.input}
-              value={rack.rate?.toString() || ""}
               keyboardType="numeric"
+              value={rack.rate?.toString() || ""}
               onChangeText={(text) =>
                 updateRackDetails(rack.id, {
                   rate: Number(text) || 0,
                 })
               }
-              placeholder="0"
             />
           </View>
 
           <View style={styles.divider} />
 
-          {/* ================= STOCK ================= */}
+          {/* STOCK */}
+          <Text style={styles.sectionTitle}>Stock</Text>
+
           <Text>Stock: {rack.stock}</Text>
           <Text>Bags / Level: {rack.bagsPerLevel}</Text>
           <Text>Levels Used: {levels}</Text>
 
           <View style={styles.row}>
             <TouchableOpacity
-              style={styles.btn}
+              style={styles.primaryBtn}
               onPress={() => addStock(rack.id)}
             >
-              <Text style={styles.btnText}>Add +</Text>
+              <Text style={styles.btnText}>+ Add</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.btn}
+              style={styles.primaryBtn}
               onPress={() => removeStock(rack.id)}
             >
-              <Text style={styles.btnText}>Remove -</Text>
+              <Text style={styles.btnText}>- Remove</Text>
             </TouchableOpacity>
           </View>
 
@@ -170,18 +165,18 @@ export default function RackInfoPanel() {
                 updateBagsPerLevel(rack.id, Math.max(rack.bagsPerLevel - 1, 1))
               }
             >
-              <Text>- Bags/Level</Text>
+              <Text>- Bags / Level</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.smallBtn}
               onPress={() => updateBagsPerLevel(rack.id, rack.bagsPerLevel + 1)}
             >
-              <Text>+ Bags/Level</Text>
+              <Text>+ Bags / Level</Text>
             </TouchableOpacity>
           </View>
 
-          {/* ================= SIZE (EDIT MODE ONLY) ================= */}
+          {/* SIZE */}
           {editMode && (
             <>
               <View style={styles.divider} />
@@ -224,14 +219,15 @@ export default function RackInfoPanel() {
             </>
           )}
 
-          {/* ================= DELETE ================= */}
+          <View style={styles.divider} />
+
           <TouchableOpacity
             style={styles.deleteBtn}
             onPress={() => deleteRack(rack.id)}
           >
             <Text style={styles.deleteText}>Remove Rack</Text>
           </TouchableOpacity>
-        </>
+        </ScrollView>
       )}
     </View>
   );
@@ -240,19 +236,19 @@ export default function RackInfoPanel() {
 const styles = StyleSheet.create({
   panel: {
     position: "absolute",
-    bottom: 0,
-    width: "100%",
-    backgroundColor: "#ffffff",
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    elevation: 10,
+    bottom: 20,
+    right: 20,
+    width: 340,
+    maxHeight: "75%",
+    backgroundColor: "#ffffffee",
+    borderRadius: 20,
+    padding: 18,
+    elevation: 15,
   },
 
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 15,
   },
 
   collapseBtn: {
@@ -266,12 +262,7 @@ const styles = StyleSheet.create({
   },
 
   collapseText: {
-    fontSize: 16,
     fontWeight: "bold",
-  },
-
-  nameContainer: {
-    flex: 1,
   },
 
   label: {
@@ -283,16 +274,8 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: "#ddd",
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 8,
-    backgroundColor: "#fafafa",
-  },
-
-  dateInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
     backgroundColor: "#fafafa",
   },
 
@@ -300,15 +283,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 
-  divider: {
-    height: 1,
-    backgroundColor: "#ddd",
-    marginVertical: 10,
-  },
-
   sectionTitle: {
     fontWeight: "bold",
     marginBottom: 6,
+    fontSize: 15,
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: "#e5e5e5",
+    marginVertical: 15,
   },
 
   row: {
@@ -317,10 +301,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  btn: {
+  primaryBtn: {
     backgroundColor: "#4a90e2",
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 10,
   },
 
   btnText: {
@@ -331,19 +315,26 @@ const styles = StyleSheet.create({
   smallBtn: {
     backgroundColor: "#eeeeee",
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 10,
   },
 
   deleteBtn: {
-    marginTop: 15,
     backgroundColor: "#e74c3c",
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
   },
 
   deleteText: {
     color: "white",
     fontWeight: "bold",
+  },
+
+  dateInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: "#fafafa",
   },
 });
