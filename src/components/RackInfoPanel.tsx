@@ -1,3 +1,4 @@
+import DateTimePicker from "@react-native-community/datetimepicker";
 import React from "react";
 import {
   StyleSheet,
@@ -11,18 +12,25 @@ import { useWarehouseStore } from "../store/useWarehouseStore";
 export default function RackInfoPanel() {
   const selectedRack = useWarehouseStore((s) => s.selectedRack);
   const racks = useWarehouseStore((s) => s.racks) || [];
+
   const updateRackName = useWarehouseStore((s) => s.updateRackName);
+  const updateRackDetails = useWarehouseStore((s) => s.updateRackDetails);
 
   const addStock = useWarehouseStore((s) => s.addStock);
   const removeStock = useWarehouseStore((s) => s.removeStock);
   const updateBagsPerLevel = useWarehouseStore((s) => s.updateBagsPerLevel);
   const deleteRack = useWarehouseStore((s) => s.deleteRack);
-
-  // 🔥 NEW
   const updateRackSize = useWarehouseStore((s) => s.updateRackSize);
+
   const editMode = useWarehouseStore((s) => s.editMode);
 
   const [collapsed, setCollapsed] = React.useState(false);
+  const [showEntryPicker, setShowEntryPicker] = React.useState(false);
+  const [showExpiryPicker, setShowExpiryPicker] = React.useState(false);
+
+  const formatDate = (date: Date) => {
+    return date.toISOString().split("T")[0];
+  };
 
   if (!selectedRack) return null;
 
@@ -36,40 +44,109 @@ export default function RackInfoPanel() {
 
   return (
     <View style={styles.panel}>
-      {/* Header */}
-      <TouchableOpacity onPress={() => setCollapsed(!collapsed)}>
-        <View style={styles.headerRow}>
-          {/* Collapse Toggle */}
-          <TouchableOpacity
-            style={styles.collapseBtn}
-            onPress={() => setCollapsed(!collapsed)}
-          >
-            <Text style={styles.collapseText}>{collapsed ? "▼" : "▲"}</Text>
-          </TouchableOpacity>
+      {/* ================= HEADER ================= */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          style={styles.collapseBtn}
+          onPress={() => setCollapsed(!collapsed)}
+        >
+          <Text style={styles.collapseText}>{collapsed ? "▼" : "▲"}</Text>
+        </TouchableOpacity>
 
-          {/* Name Section */}
-          <View style={styles.nameContainer}>
-            <Text style={styles.label}>Rack Name</Text>
-
-            <TextInput
-              style={styles.nameInput}
-              value={rack.name}
-              onChangeText={(text) => updateRackName(rack.id, text.trimStart())}
-              placeholder="Enter rack name"
-              placeholderTextColor="#999"
-              maxLength={25}
-            />
-          </View>
+        <View style={styles.nameContainer}>
+          <Text style={styles.label}>Rack Name</Text>
+          <TextInput
+            style={styles.input}
+            value={rack.name}
+            onChangeText={(text) => updateRackName(rack.id, text.trimStart())}
+            placeholder="Enter rack name"
+            maxLength={25}
+          />
         </View>
-      </TouchableOpacity>
+      </View>
 
       {!collapsed && (
         <>
+          {/* ================= DETAILS ================= */}
+          <View style={styles.field}>
+            <Text style={styles.label}>Entry Date</Text>
+
+            <TouchableOpacity
+              style={styles.dateInput}
+              onPress={() => setShowEntryPicker(true)}
+            >
+              <Text>{rack.entryDate || "Select Date"}</Text>
+            </TouchableOpacity>
+
+            {showEntryPicker && (
+              <DateTimePicker
+                value={rack.entryDate ? new Date(rack.entryDate) : new Date()}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowEntryPicker(false);
+
+                  if (event.type === "set" && selectedDate) {
+                    updateRackDetails(rack.id, {
+                      entryDate: formatDate(selectedDate),
+                    });
+                  }
+                }}
+              />
+            )}
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Expiry Date</Text>
+
+            <TouchableOpacity
+              style={styles.dateInput}
+              onPress={() => setShowExpiryPicker(true)}
+            >
+              <Text>{rack.expiryDate || "Select Date"}</Text>
+            </TouchableOpacity>
+
+            {showExpiryPicker && (
+              <DateTimePicker
+                value={rack.expiryDate ? new Date(rack.expiryDate) : new Date()}
+                mode="date"
+                display="default"
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowExpiryPicker(false);
+
+                  if (event.type === "set" && selectedDate) {
+                    updateRackDetails(rack.id, {
+                      expiryDate: formatDate(selectedDate),
+                    });
+                  }
+                }}
+              />
+            )}
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Rate (₹ per bag)</Text>
+            <TextInput
+              style={styles.input}
+              value={rack.rate?.toString() || ""}
+              keyboardType="numeric"
+              onChangeText={(text) =>
+                updateRackDetails(rack.id, {
+                  rate: Number(text) || 0,
+                })
+              }
+              placeholder="0"
+            />
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* ================= STOCK ================= */}
           <Text>Stock: {rack.stock}</Text>
           <Text>Bags / Level: {rack.bagsPerLevel}</Text>
           <Text>Levels Used: {levels}</Text>
 
-          {/* Stock Controls */}
           <View style={styles.row}>
             <TouchableOpacity
               style={styles.btn}
@@ -86,7 +163,6 @@ export default function RackInfoPanel() {
             </TouchableOpacity>
           </View>
 
-          {/* Bags Per Level Controls */}
           <View style={styles.row}>
             <TouchableOpacity
               style={styles.smallBtn}
@@ -105,53 +181,42 @@ export default function RackInfoPanel() {
             </TouchableOpacity>
           </View>
 
-          {/* 🔥 Resize Controls (Only in Edit Mode) */}
+          {/* ================= SIZE (EDIT MODE ONLY) ================= */}
           {editMode && (
             <>
               <View style={styles.divider} />
-
               <Text style={styles.sectionTitle}>Rack Size</Text>
 
               <Text>Width: {width.toFixed(1)}</Text>
               <Text>Depth: {depth.toFixed(1)}</Text>
 
-              {/* Width Controls */}
               <View style={styles.row}>
                 <TouchableOpacity
                   style={styles.smallBtn}
-                  onPress={() =>
-                    updateRackSize(rack.id, rack.width - 0.5, rack.depth)
-                  }
+                  onPress={() => updateRackSize(rack.id, width - 0.5, depth)}
                 >
                   <Text>- Width</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.smallBtn}
-                  onPress={() =>
-                    updateRackSize(rack.id, rack.width + 0.5, rack.depth)
-                  }
+                  onPress={() => updateRackSize(rack.id, width + 0.5, depth)}
                 >
                   <Text>+ Width</Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Depth Controls */}
               <View style={styles.row}>
                 <TouchableOpacity
                   style={styles.smallBtn}
-                  onPress={() =>
-                    updateRackSize(rack.id, rack.width, rack.depth - 0.5)
-                  }
+                  onPress={() => updateRackSize(rack.id, width, depth - 0.5)}
                 >
                   <Text>- Depth</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.smallBtn}
-                  onPress={() =>
-                    updateRackSize(rack.id, rack.width, rack.depth + 0.5)
-                  }
+                  onPress={() => updateRackSize(rack.id, width, depth + 0.5)}
                 >
                   <Text>+ Depth</Text>
                 </TouchableOpacity>
@@ -159,7 +224,7 @@ export default function RackInfoPanel() {
             </>
           )}
 
-          {/* Delete Rack */}
+          {/* ================= DELETE ================= */}
           <TouchableOpacity
             style={styles.deleteBtn}
             onPress={() => deleteRack(rack.id)}
@@ -183,50 +248,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     elevation: 10,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    marginTop: 10,
-    fontWeight: "bold",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#ddd",
-    marginVertical: 10,
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  btn: {
-    backgroundColor: "#4a90e2",
-    padding: 10,
-    borderRadius: 8,
-  },
-  btnText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-  smallBtn: {
-    backgroundColor: "#eeeeee",
-    padding: 10,
-    borderRadius: 8,
-  },
-  deleteBtn: {
-    marginTop: 15,
-    backgroundColor: "#e74c3c",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  deleteText: {
-    color: "white",
-    fontWeight: "bold",
-  },
+
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -254,17 +276,74 @@ const styles = StyleSheet.create({
 
   label: {
     fontSize: 12,
-    color: "#777",
+    color: "#666",
     marginBottom: 4,
   },
 
-  nameInput: {
+  input: {
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 16,
+    padding: 8,
     backgroundColor: "#fafafa",
+  },
+
+  dateInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: "#fafafa",
+  },
+
+  field: {
+    marginTop: 12,
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: "#ddd",
+    marginVertical: 10,
+  },
+
+  sectionTitle: {
+    fontWeight: "bold",
+    marginBottom: 6,
+  },
+
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+
+  btn: {
+    backgroundColor: "#4a90e2",
+    padding: 10,
+    borderRadius: 8,
+  },
+
+  btnText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+
+  smallBtn: {
+    backgroundColor: "#eeeeee",
+    padding: 10,
+    borderRadius: 8,
+  },
+
+  deleteBtn: {
+    marginTop: 15,
+    backgroundColor: "#e74c3c",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+
+  deleteText: {
+    color: "white",
+    fontWeight: "bold",
   },
 });

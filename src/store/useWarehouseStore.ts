@@ -4,28 +4,48 @@ import { persist } from "zustand/middleware";
 
 export type Rack = {
   id: string;
-  name: string; // NEW
+  name: string;
+
   position: [number, number, number];
+
   stock: number;
   bagsPerLevel: number;
+
   width: number;
   depth: number;
+
+  entryDate: string; // ✅ NEW
+  expiryDate: string; // ✅ NEW
+  rate: number; // ✅ NEW
 };
 
 type WarehouseState = {
   racks: Rack[];
   selectedRack: string | null;
   editMode: boolean;
-  updateRackName: (id: string, name: string) => void;
 
   addRack: () => void;
   deleteRack: (id: string) => void;
   selectRack: (id: string) => void;
+
   addStock: (id: string) => void;
   removeStock: (id: string) => void;
   updateBagsPerLevel: (id: string, value: number) => void;
+
   moveRack: (id: string, position: [number, number, number]) => void;
   updateRackSize: (id: string, width: number, depth: number) => void;
+
+  updateRackName: (id: string, name: string) => void;
+
+  updateRackDetails: (
+    id: string,
+    data: Partial<{
+      name: string;
+      entryDate: string;
+      expiryDate: string;
+      rate: number;
+    }>,
+  ) => void;
 
   toggleEditMode: () => void;
 };
@@ -51,6 +71,7 @@ export const useWarehouseStore = create<WarehouseState>()(
       addRack: () =>
         set((state) => {
           const id = `R-${Date.now()}`;
+          const today = new Date().toISOString().split("T")[0];
 
           return {
             racks: [
@@ -63,6 +84,9 @@ export const useWarehouseStore = create<WarehouseState>()(
                 bagsPerLevel: 5,
                 width: 1.5,
                 depth: 1,
+                entryDate: today, // ✅ NEW
+                expiryDate: "", // ✅ NEW
+                rate: 0, // ✅ NEW
               },
             ],
           };
@@ -93,10 +117,7 @@ export const useWarehouseStore = create<WarehouseState>()(
         set((state) => ({
           racks: state.racks.map((rack) =>
             rack.id === id
-              ? {
-                  ...rack,
-                  stock: Math.max(rack.stock - 1, 0),
-                }
+              ? { ...rack, stock: Math.max(rack.stock - 1, 0) }
               : rack,
           ),
         })),
@@ -105,10 +126,7 @@ export const useWarehouseStore = create<WarehouseState>()(
         set((state) => ({
           racks: state.racks.map((rack) =>
             rack.id === id
-              ? {
-                  ...rack,
-                  bagsPerLevel: Math.max(value, 1),
-                }
+              ? { ...rack, bagsPerLevel: Math.max(value, 1) }
               : rack,
           ),
         })),
@@ -120,13 +138,6 @@ export const useWarehouseStore = create<WarehouseState>()(
         set((state) => ({
           racks: state.racks.map((rack) =>
             rack.id === id ? { ...rack, position: newPosition } : rack,
-          ),
-        })),
-
-      updateRackName: (id, name) =>
-        set((state) => ({
-          racks: state.racks.map((rack) =>
-            rack.id === id ? { ...rack, name } : rack,
           ),
         })),
 
@@ -143,6 +154,26 @@ export const useWarehouseStore = create<WarehouseState>()(
                   depth: Math.max(depth, 1),
                 }
               : rack,
+          ),
+        })),
+
+      /* =========================
+         Rename Rack
+      ========================= */
+      updateRackName: (id, name) =>
+        set((state) => ({
+          racks: state.racks.map((rack) =>
+            rack.id === id ? { ...rack, name } : rack,
+          ),
+        })),
+
+      /* =========================
+         Update Details (NEW)
+      ========================= */
+      updateRackDetails: (id, data) =>
+        set((state) => ({
+          racks: state.racks.map((rack) =>
+            rack.id === id ? { ...rack, ...data } : rack,
           ),
         })),
     }),
