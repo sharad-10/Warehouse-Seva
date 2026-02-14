@@ -29,16 +29,17 @@ export default function RackInfoPanel() {
 
   const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
-  if (!selectedRack) return null;
-
   const rack = racks.find((r) => r.id === selectedRack);
-  if (!rack) return null;
 
-  const [stockInput, setStockInput] = React.useState(rack.stock.toString());
+  const [stockInput, setStockInput] = React.useState("");
 
   React.useEffect(() => {
-    setStockInput(rack.stock.toString());
-  }, [rack.stock]);
+    if (rack) {
+      setStockInput(rack.stock.toString());
+    }
+  }, [rack?.stock]);
+
+  if (!selectedRack || !rack) return null;
 
   const levels = Math.ceil(rack.stock / rack.bagsPerLevel);
   const width = rack.width ?? 1.5;
