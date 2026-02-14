@@ -8,33 +8,34 @@ type RackProps = {
 };
 
 export default function Rack({ id, position }: RackProps) {
-  const { selectedRack, selectRack, racks } = useWarehouseStore();
   const meshRef = useRef<any>(null);
+
+  const { selectedRack, selectRack } = useWarehouseStore();
+
+  const racks = useWarehouseStore((state) => state.racks) || [];
+
+  const rackData = racks.find((r) => r.id === id);
+
+  const stock = rackData?.stock || 0;
+  const bagsPerLevel = rackData?.bagsPerLevel || 5;
+
   const isSelected = selectedRack === id;
 
-  const rack = racks[id];
-  const stock = rack?.stock || 0;
-  const capacity = rack?.capacity || 20;
+  /* =========================
+     📦 Dynamic Height
+     ========================= */
 
-  const usagePercent = stock / capacity;
+  const levels = Math.ceil(stock / bagsPerLevel);
+  const height = 1 + levels * 0.8;
 
-  let color = "#4a90e2";
+  /* =========================
+     ✨ Smooth Selection Animation
+     ========================= */
 
-  if (usagePercent === 0)
-    color = "#e74c3c"; // empty
-  else if (usagePercent < 0.5)
-    color = "#f1c40f"; // low
-  else if (usagePercent < 0.9)
-    color = "#2ecc71"; // healthy
-  else color = "#8e44ad"; // almost full
-
-  if (isSelected) color = "#ff8800";
-
-  // ✨ Smooth scaling animation
   useFrame(() => {
     if (!meshRef.current) return;
 
-    const targetScale = isSelected ? 1.2 : 1;
+    const targetScale = isSelected ? 1.1 : 1;
 
     meshRef.current.scale.x += (targetScale - meshRef.current.scale.x) * 0.1;
 
@@ -48,18 +49,22 @@ export default function Rack({ id, position }: RackProps) {
       {/* Main Rack */}
       <mesh
         ref={meshRef}
-        position={position}
+        position={[position[0], height / 2, position[2]]}
         castShadow
-        onClick={() => selectRack(id)}
+        onPointerDown={() => selectRack(id)}
       >
-        <boxGeometry args={[1.5, 3, 1]} />
-        <meshStandardMaterial color={color} metalness={0.4} roughness={0.6} />
+        <boxGeometry args={[1.5, height, 1]} />
+        <meshStandardMaterial
+          color={isSelected ? "#ff8800" : "#2ecc71"}
+          metalness={0.4}
+          roughness={0.6}
+        />
       </mesh>
 
-      {/* 🔥 Glow Ring Under Selected Rack */}
+      {/* Selection Ring */}
       {isSelected && (
         <mesh
-          position={[position[0], 0.01, position[2]]}
+          position={[position[0], 0.02, position[2]]}
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <ringGeometry args={[1.2, 1.6, 32]} />

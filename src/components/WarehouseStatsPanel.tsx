@@ -1,32 +1,35 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useWarehouseStore } from "../store/useWarehouseStore";
 
 export default function WarehouseStatsPanel() {
-  const { racks } = useWarehouseStore();
+  const racks = useWarehouseStore((state) => state.racks) || [];
 
-  const rackList = Object.values(racks);
+  const [collapsed, setCollapsed] = React.useState(false);
 
-  const totalRacks = rackList.length;
-  const totalStock = rackList.reduce((sum, r) => sum + r.stock, 0);
-  const totalCapacity = rackList.reduce((sum, r) => sum + r.capacity, 0);
+  const totalRacks = racks.length;
+  const totalStock = racks.reduce((sum, r) => sum + r.stock, 0);
 
-  const utilization =
-    totalCapacity === 0 ? 0 : Math.round((totalStock / totalCapacity) * 100);
+  const totalLevels = racks.reduce((sum, r) => {
+    const levels = Math.ceil(r.stock / r.bagsPerLevel);
+    return sum + levels;
+  }, 0);
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.title}>Warehouse Overview</Text>
+      <TouchableOpacity onPress={() => setCollapsed(!collapsed)}>
+        <Text style={styles.title}>
+          Warehouse Overview {collapsed ? "▼" : "▲"}
+        </Text>
+      </TouchableOpacity>
 
-      <Text>Total Racks: {totalRacks}</Text>
-      <Text>Total Stock: {totalStock}</Text>
-      <Text>Total Capacity: {totalCapacity}</Text>
-      <Text>Utilization: {utilization}%</Text>
-
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <View style={[styles.progressBar, { width: `${utilization}%` }]} />
-      </View>
+      {!collapsed && (
+        <>
+          <Text>Total Racks: {totalRacks}</Text>
+          <Text>Total Stock: {totalStock}</Text>
+          <Text>Total Levels: {totalLevels}</Text>
+        </>
+      )}
     </View>
   );
 }
@@ -36,7 +39,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 40,
     left: 20,
-    width: 220,
+    width: 240,
     backgroundColor: "#ffffffee",
     padding: 15,
     borderRadius: 12,
@@ -45,16 +48,5 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: "bold",
     marginBottom: 8,
-  },
-  progressContainer: {
-    height: 8,
-    backgroundColor: "#ddd",
-    borderRadius: 4,
-    marginTop: 8,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: "#2ecc71",
-    borderRadius: 4,
   },
 });
