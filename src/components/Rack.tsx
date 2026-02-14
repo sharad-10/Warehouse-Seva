@@ -10,35 +10,55 @@ type RackProps = {
 export default function Rack({ id, position }: RackProps) {
   const meshRef = useRef<any>(null);
 
-  const { selectedRack, selectRack } = useWarehouseStore();
-
-  const racks = useWarehouseStore((state) => state.racks) || [];
+  const selectedRack = useWarehouseStore((s) => s.selectedRack);
+  const racks = useWarehouseStore((s) => s.racks) || [];
 
   const rackData = racks.find((r) => r.id === id);
+  if (!rackData) return null;
 
-  const name = rackData?.name ?? id;
-  const stock = rackData?.stock || 0;
-  const bagsPerLevel = rackData?.bagsPerLevel || 5;
+  const { stock, bagsPerLevel, width, depth, expiryDate } = rackData;
 
   const isSelected = selectedRack === id;
 
-  const width = rackData?.width ?? 1.5;
-  const depth = rackData?.depth ?? 1;
-
   /* =========================
      📦 Dynamic Height
-     ========================= */
-
+  ========================= */
   const levels = Math.ceil(stock / bagsPerLevel);
   const height = 1 + levels * 0.8;
 
   /* =========================
-     ✨ Smooth Selection Animation
-     ========================= */
+     ⚠ Expiry Logic
+  ========================= */
+  const today = new Date();
+  const expiry = expiryDate ? new Date(expiryDate) : null;
 
-  useFrame(() => {
+  let isExpired = false;
+  let isNearExpiry = false;
+
+  if (expiry) {
+    const diff = (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (diff < 0) isExpired = true;
+    else if (diff <= 7) isNearExpiry = true;
+  }
+
+  /* =========================
+     🎨 Color Logic
+  ========================= */
+  let baseColor = "#2ecc71"; // Safe green
+
+  if (isNearExpiry) baseColor = "#f39c12"; // Orange
+  if (isExpired) baseColor = "#e74c3c"; // Red
+
+  if (isSelected) baseColor = "#ff8800";
+
+  /* =========================
+     ✨ Animation
+  ========================= */
+  useFrame(({ clock }) => {
     if (!meshRef.current) return;
 
+    // Selection scale animation
     const targetScale = isSelected ? 1.1 : 1;
 
     meshRef.current.scale.x += (targetScale - meshRef.current.scale.x) * 0.1;
@@ -46,36 +66,34 @@ export default function Rack({ id, position }: RackProps) {
     meshRef.current.scale.y += (targetScale - meshRef.current.scale.y) * 0.1;
 
     meshRef.current.scale.z += (targetScale - meshRef.current.scale.z) * 0.1;
+
+    // 🔥 Blinking effect for expired racks
+    if (isExpired) {
+      const blink = (Math.sin(clock.getElapsedTime() * 4) + 1) / 2;
+
+      meshRef.current.material.opacity = 0.5 + blink * 0.5;
+      meshRef.current.material.transparent = true;
+    } else {
+      meshRef.current.material.opacity = 1;
+      meshRef.current.material.transparent = false;
+    }
   });
 
   return (
     <group>
-      {/* Main Rack */}
       <mesh
         ref={meshRef}
         position={[position[0], height / 2, position[2]]}
         castShadow
-        onPointerDown={() => selectRack(id)}
+        onPointerDown={() => useWarehouseStore.getState().selectRack(id)}
       >
         <boxGeometry args={[width, height, depth]} />
-
         <meshStandardMaterial
-          color={isSelected ? "#ff8800" : "#2ecc71"}
+          color={baseColor}
           metalness={0.4}
           roughness={0.6}
         />
       </mesh>
-
-      {/* Selection Ring */}
-      {isSelected && (
-        <mesh
-          position={[position[0], 0.02, position[2]]}
-          rotation={[-Math.PI / 2, 0, 0]}
-        >
-          <ringGeometry args={[width / 2, width / 2 + 0.4, 32]} />
-          <meshBasicMaterial color="#ff8800" />
-        </mesh>
-      )}
     </group>
   );
 }
