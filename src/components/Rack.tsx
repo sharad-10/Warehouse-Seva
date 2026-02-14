@@ -16,10 +16,14 @@ export default function Rack({ id, position }: RackProps) {
 
   const rackData = racks.find((r) => r.id === id);
 
+  const name = rackData?.name ?? id;
   const stock = rackData?.stock || 0;
   const bagsPerLevel = rackData?.bagsPerLevel || 5;
 
   const isSelected = selectedRack === id;
+
+  const width = rackData?.width ?? 1.5;
+  const depth = rackData?.depth ?? 1;
 
   /* =========================
      📦 Dynamic Height
@@ -53,7 +57,8 @@ export default function Rack({ id, position }: RackProps) {
         castShadow
         onPointerDown={() => selectRack(id)}
       >
-        <boxGeometry args={[1.5, height, 1]} />
+        <boxGeometry args={[width, height, depth]} />
+
         <meshStandardMaterial
           color={isSelected ? "#ff8800" : "#2ecc71"}
           metalness={0.4}
@@ -67,7 +72,7 @@ export default function Rack({ id, position }: RackProps) {
           position={[position[0], 0.02, position[2]]}
           rotation={[-Math.PI / 2, 0, 0]}
         >
-          <ringGeometry args={[1.2, 1.6, 32]} />
+          <ringGeometry args={[width / 2, width / 2 + 0.4, 32]} />
           <meshBasicMaterial color="#ff8800" />
         </mesh>
       )}

@@ -78,8 +78,8 @@ function Floor() {
     return racks.some(
       (rack) =>
         rack.id !== selectedRack &&
-        Math.abs(rack.position[0] - pos[0]) < 2 &&
-        Math.abs(rack.position[2] - pos[2]) < 2,
+        Math.abs(rack.position[0] - pos[0]) < rack.width / 2 + 1 &&
+        Math.abs(rack.position[2] - pos[2]) < rack.depth / 2 + 1,
     );
   };
 
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
 
   editBtn: {
     position: "absolute",
-    top: 90,
+    top: 120,
     right: 20,
     padding: 12,
     borderRadius: 10,
