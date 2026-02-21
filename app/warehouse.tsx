@@ -1,9 +1,11 @@
 import { OrbitControls } from "@react-three/drei/native";
 import { Canvas, useThree } from "@react-three/fiber/native";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   Animated,
   Dimensions,
+  Keyboard,
   Modal,
   PanResponder,
   ScrollView,
@@ -11,14 +13,16 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import * as THREE from "three";
+import { useAuthStore } from "../src/store/useAuthStore";
 
-import { useWarehouseStore } from "../store/useWarehouseStore";
-import Rack from "./Rack";
-import RackInfoPanel from "./RackInfoPanel";
-import WarehouseStatsPanel from "./WarehouseStatsPanel";
+import Rack from "../src/components/Rack";
+import RackInfoPanel from "../src/components/RackInfoPanel";
+import WarehouseStatsPanel from "../src/components/WarehouseStatsPanel";
+import { useWarehouseStore } from "../src/store/useWarehouseStore";
 
 /* =========================
    🔥 Zoom Controller
@@ -127,12 +131,21 @@ export default function WarehouseScene() {
   const [warehouseModalVisible, setWarehouseModalVisible] =
     React.useState(false);
   const [newWarehouseName, setNewWarehouseName] = React.useState("");
+  const router = useRouter();
 
   const warehouses = useWarehouseStore((s) => s.warehouses);
   const selectedWarehouseId = useWarehouseStore((s) => s.selectedWarehouseId);
   const selectWarehouse = useWarehouseStore((s) => s.selectWarehouse);
   const addWarehouse = useWarehouseStore((s) => s.addWarehouse);
   const deleteWarehouse = useWarehouseStore((s) => s.deleteWarehouse);
+  const [profileVisible, setProfileVisible] = React.useState(false);
+
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const updateProfile = useAuthStore((s) => s.updateProfile);
+
+  const [nameInput, setNameInput] = React.useState(user?.name || "");
+  const [passwordInput, setPasswordInput] = React.useState("");
 
   const currentWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
 
@@ -146,6 +159,9 @@ export default function WarehouseScene() {
     string | null
   >(null);
   const [renameValue, setRenameValue] = React.useState("");
+
+  const [emailInput, setEmailInput] = React.useState(user?.email || "");
+  const [phoneInput, setPhoneInput] = React.useState(user?.phone || "");
 
   const handleZoom = (value: number) => {
     setZoomValue(value);
@@ -169,6 +185,14 @@ export default function WarehouseScene() {
     }),
   ).current;
 
+  React.useEffect(() => {
+    if (profileVisible && user) {
+      setNameInput(user.name);
+      setEmailInput(user.email);
+      setPhoneInput(user.phone);
+    }
+  }, [profileVisible]);
+
   return (
     <View style={{ flex: 1 }}>
       {/* HEADER */}
@@ -177,9 +201,103 @@ export default function WarehouseScene() {
           <Text style={styles.logoText}>{currentWarehouse?.name} ▼</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.profileBtn}>
-          <Text style={styles.profileText}>👤 Sharad</Text>
+        <TouchableOpacity
+          style={styles.profileBtn}
+          onPress={() => setProfileVisible(true)}
+        >
+          <Text style={styles.profileText}>👤 {user?.name}</Text>
         </TouchableOpacity>
+
+        <Modal visible={profileVisible} animationType="slide" transparent>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <View style={styles.profileModal}>
+                <Text style={styles.modalTitle}>My Profile</Text>
+                <Text style={styles.infoText}>
+                  Total Warehouses: {warehouses.length}
+                </Text>
+                <Text style={styles.label}>Username</Text>
+                <TextInput
+                  style={styles.input}
+                  value={nameInput}
+                  onChangeText={setNameInput}
+                  placeholder="Enter username"
+                />
+
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  value={emailInput}
+                  onChangeText={setEmailInput}
+                  placeholder="Enter email"
+                  autoCapitalize="none"
+                />
+
+                <Text style={styles.label}>Phone Number</Text>
+                <TextInput
+                  style={styles.input}
+                  value={phoneInput}
+                  onChangeText={setPhoneInput}
+                  placeholder="Enter phone number"
+                  keyboardType="number-pad"
+                />
+
+                <Text style={styles.label}>New Password</Text>
+                <TextInput
+                  style={styles.input}
+                  value={passwordInput}
+                  onChangeText={setPasswordInput}
+                  placeholder="Enter new password"
+                  secureTextEntry
+                />
+
+                <TouchableOpacity
+                  style={styles.primaryBtn}
+                  onPress={() => {
+                    if (!nameInput || !emailInput || !phoneInput) {
+                      alert("All fields except password are required");
+                      return;
+                    }
+
+                    if (!/^[0-9]{10}$/.test(phoneInput)) {
+                      alert("Enter valid 10-digit phone number");
+                      return;
+                    }
+
+                    updateProfile({
+                      name: nameInput.trim(),
+                      email: emailInput.trim(),
+                      phone: phoneInput.trim(),
+                      ...(passwordInput ? { password: passwordInput } : {}),
+                    });
+
+                    setPasswordInput("");
+                    setProfileVisible(false);
+                  }}
+                >
+                  <Text style={styles.btnText}>Save Changes</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.logoutBtn}
+                  onPress={() => {
+                    logout();
+                    router.replace("/login"); // 🔥 force redirect
+                  }}
+                >
+                  <Text style={styles.logoutText}>Logout</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.secondaryBtn}
+                  onPress={() => setProfileVisible(false)}
+                >
+                  <Text>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
       </View>
 
       {/* 3D VIEW */}
@@ -487,5 +605,42 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     marginBottom: 10,
+  },
+
+  profileModal: {
+    width: "85%",
+    backgroundColor: "#FFFDF7",
+    padding: 20,
+    borderRadius: 20,
+  },
+
+  infoText: {
+    marginBottom: 15,
+    fontWeight: "bold",
+  },
+
+  label: {
+    fontSize: 12,
+    marginTop: 10,
+    marginBottom: 4,
+    color: "#555",
+  },
+
+  logoutBtn: {
+    backgroundColor: "#E74C3C",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  logoutText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  secondaryBtn: {
+    marginTop: 10,
+    alignItems: "center",
   },
 });

@@ -1,10 +1,12 @@
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import WarehouseScene from "../src/components/WarehouseScene";
+import { Redirect } from "expo-router";
+import { useAuthStore } from "../src/store/useAuthStore";
 
-export default function Home() {
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <WarehouseScene />
-    </GestureHandlerRootView>
-  );
+export default function Index() {
+  const user = useAuthStore((s) => s.user);
+
+  if (!user) {
+    return <Redirect href="/login" />;
+  }
+
+  return <Redirect href="/warehouse" />;
 }
