@@ -124,7 +124,7 @@ function Floor() {
    🏗 Warehouse Scene
    ========================= */
 export default function WarehouseScene() {
-  const [zoomValue, setZoomValue] = React.useState(0);
+  const [zoomValue, setZoomValue] = React.useState(60);
 
   const racks = useWarehouseStore((s) => s.racks) || [];
   const addRack = useWarehouseStore((s) => s.addRack);

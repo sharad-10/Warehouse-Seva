@@ -4,7 +4,7 @@ import { useWarehouseStore } from "../store/useWarehouseStore";
 
 export default function WarehouseStatsPanel() {
   const racks = useWarehouseStore((state) => state.racks) || [];
-  const [collapsed, setCollapsed] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(true);
 
   const totalRacks = racks.length;
 

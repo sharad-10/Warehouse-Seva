@@ -23,7 +23,7 @@ export default function RackInfoPanel() {
   const updateRackSize = useWarehouseStore((s) => s.updateRackSize);
   const editMode = useWarehouseStore((s) => s.editMode);
 
-  const [collapsed, setCollapsed] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(true);
   const [showEntryPicker, setShowEntryPicker] = React.useState(false);
   const [showExpiryPicker, setShowExpiryPicker] = React.useState(false);
 
