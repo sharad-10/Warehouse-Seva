@@ -11,7 +11,12 @@ export default function Rack({ id, position }: RackProps) {
   const meshRef = useRef<any>(null);
 
   const selectedRack = useWarehouseStore((s) => s.selectedRack);
-  const racks = useWarehouseStore((s) => s.racks) || [];
+  const warehouses = useWarehouseStore((s) => s.warehouses);
+  const selectedWarehouseId = useWarehouseStore((s) => s.selectedWarehouseId);
+
+  const currentWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
+
+  const racks = currentWarehouse?.racks || [];
 
   const rackData = racks.find((r) => r.id === id);
   if (!rackData) return null;

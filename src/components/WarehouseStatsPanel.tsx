@@ -3,7 +3,12 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useWarehouseStore } from "../store/useWarehouseStore";
 
 export default function WarehouseStatsPanel() {
-  const racks = useWarehouseStore((state) => state.racks) || [];
+  const warehouses = useWarehouseStore((s) => s.warehouses);
+  const selectedWarehouseId = useWarehouseStore((s) => s.selectedWarehouseId);
+
+  const currentWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
+
+  const racks = currentWarehouse?.racks || [];
   const [collapsed, setCollapsed] = React.useState(true);
 
   const totalRacks = racks.length;
@@ -52,22 +57,23 @@ export default function WarehouseStatsPanel() {
 
 const styles = StyleSheet.create({
   panel: {
-    position: "absolute",
-    top: 40,
-    left: 20,
-    width: 260,
-    backgroundColor: "#ffffffee",
+    backgroundColor: "#FFFDF7",
     padding: 15,
-    borderRadius: 12,
-    elevation: 8,
+    borderRadius: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "#F2E6B3",
   },
+
   title: {
     fontWeight: "bold",
     marginBottom: 8,
+    color: "#F4B400",
   },
+
   divider: {
     height: 1,
-    backgroundColor: "#ddd",
+    backgroundColor: "#F2E6B3",
     marginVertical: 10,
   },
 });

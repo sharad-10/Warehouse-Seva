@@ -12,7 +12,12 @@ import { useWarehouseStore } from "../store/useWarehouseStore";
 
 export default function RackInfoPanel() {
   const selectedRack = useWarehouseStore((s) => s.selectedRack);
-  const racks = useWarehouseStore((s) => s.racks) || [];
+  const warehouses = useWarehouseStore((s) => s.warehouses);
+  const selectedWarehouseId = useWarehouseStore((s) => s.selectedWarehouseId);
+
+  const currentWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
+
+  const racks = currentWarehouse?.racks || [];
 
   const updateRackName = useWarehouseStore((s) => s.updateRackName);
   const updateRackDetails = useWarehouseStore((s) => s.updateRackDetails);
@@ -308,15 +313,12 @@ export default function RackInfoPanel() {
 
 const styles = StyleSheet.create({
   panel: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    width: 340,
-    maxHeight: "75%",
-    backgroundColor: "#ffffffee",
+    backgroundColor: "#FFFDF7",
     borderRadius: 20,
     padding: 18,
-    elevation: 15,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#F2E6B3",
   },
 
   headerRow: {
@@ -328,7 +330,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: "#f2f2f2",
+    backgroundColor: "#FFF4CC",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
@@ -344,10 +346,10 @@ const styles = StyleSheet.create({
 
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#F2E6B3",
     borderRadius: 10,
     padding: 8,
-    backgroundColor: "#fafafa",
+    backgroundColor: "#FFFFFF",
   },
 
   field: { marginTop: 12 },
@@ -371,7 +373,7 @@ const styles = StyleSheet.create({
   },
 
   primaryBtn: {
-    backgroundColor: "#4a90e2",
+    backgroundColor: "#F4B400",
     padding: 12,
     marginTop: 10,
     borderRadius: 10,
@@ -383,13 +385,13 @@ const styles = StyleSheet.create({
   },
 
   smallBtn: {
-    backgroundColor: "#eeeeee",
+    backgroundColor: "#FFF4CC",
     padding: 10,
     borderRadius: 10,
   },
 
   deleteBtn: {
-    backgroundColor: "#e74c3c",
+    backgroundColor: "#D84315", // keep red for delete (important UX rule)
     padding: 12,
     borderRadius: 12,
     alignItems: "center",
