@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import React from "react";
 import {
   Alert,
@@ -33,6 +33,16 @@ export default function SignupScreen() {
     }
 
     try {
+      // 1️⃣ Check if username already exists
+      const usernameRef = doc(db, "usernames", username.toLowerCase());
+      const usernameSnap = await getDoc(usernameRef);
+
+      if (usernameSnap.exists()) {
+        Alert.alert("Error", "Username already taken");
+        return;
+      }
+
+      // 2️⃣ Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -41,11 +51,18 @@ export default function SignupScreen() {
 
       const user = userCredential.user;
 
+      // 3️⃣ Save user data
       await setDoc(doc(db, "users", user.uid), {
         email,
-        name: username,
+        username: username.toLowerCase(),
         phone,
         createdAt: new Date(),
+      });
+
+      // 4️⃣ Create username → email mapping
+      await setDoc(usernameRef, {
+        uid: user.uid,
+        email,
       });
 
       router.replace("/");
@@ -53,13 +70,13 @@ export default function SignupScreen() {
       Alert.alert("Signup Failed", error.message);
     }
   };
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Create Account</Text>
 
       <TextInput
         placeholder="Enter email"
+        placeholderTextColor="#999"
         style={styles.input}
         value={email}
         onChangeText={setEmail}
@@ -67,6 +84,7 @@ export default function SignupScreen() {
 
       <TextInput
         placeholder="Enter username"
+        placeholderTextColor="#999"
         style={styles.input}
         value={username}
         onChangeText={setUsername}
@@ -74,6 +92,7 @@ export default function SignupScreen() {
 
       <TextInput
         placeholder="Enter phone number"
+        placeholderTextColor="#999"
         style={styles.input}
         keyboardType="number-pad"
         value={phone}
@@ -82,6 +101,7 @@ export default function SignupScreen() {
 
       <TextInput
         placeholder="Enter password"
+        placeholderTextColor="#999"
         style={styles.input}
         secureTextEntry
         value={password}
@@ -90,6 +110,7 @@ export default function SignupScreen() {
 
       <TextInput
         placeholder="Confirm password"
+        placeholderTextColor="#999"
         style={styles.input}
         secureTextEntry
         value={confirmPassword}

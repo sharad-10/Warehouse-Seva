@@ -172,12 +172,6 @@ export default function WarehouseScene() {
     [number, number, number] | null
   >(null);
 
-  React.useEffect(() => {
-    if (!selectedWarehouseId && warehouses.length > 0) {
-      setSelectedWarehouseId(warehouses[0].id);
-    }
-  }, [warehouses]);
-
   const [profileVisible, setProfileVisible] = React.useState(false);
 
   const [nameInput, setNameInput] = React.useState("");
@@ -194,11 +188,6 @@ export default function WarehouseScene() {
 
   const [emailInput, setEmailInput] = React.useState("");
   const [phoneInput, setPhoneInput] = React.useState("");
-
-  const handleZoom = (value: number) => {
-    setZoomValue(value);
-    setTimeout(() => setZoomValue(0), 50);
-  };
 
   const screenHeight = Dimensions.get("window").height;
   const modelHeight = React.useRef(
@@ -217,24 +206,41 @@ export default function WarehouseScene() {
     }),
   ).current;
 
+  /* =========================
+     🔐 Auth Listener (Fixed)
+  ========================= */
   React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setFirebaseUser(user);
       } else {
-        setFirebaseUser(null);
+        router.replace("/login");
       }
-
       setAuthLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.replace("/login");
-  };
+  /* =========================
+     🏭 Auto Select Warehouse (Fixed Position)
+  ========================= */
+  React.useEffect(() => {
+    if (!selectedWarehouseId && warehouses.length > 0) {
+      setSelectedWarehouseId(warehouses[0].id);
+    }
+  }, [warehouses]);
+
+  /* =========================
+     👤 Prefill Profile
+  ========================= */
+  React.useEffect(() => {
+    if (firebaseUser) {
+      setNameInput(firebaseUser.displayName || "");
+      setEmailInput(firebaseUser.email || "");
+    }
+  }, [firebaseUser]);
+
   if (authLoading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -242,17 +248,17 @@ export default function WarehouseScene() {
       </View>
     );
   }
-  if (authLoading) {
-    if (!firebaseUser) {
-      router.replace("/login");
-      return null;
-    }
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Checking session...</Text>
-      </View>
-    );
-  }
+
+  const handleZoom = (value: number) => {
+    setZoomValue(value);
+    setTimeout(() => setZoomValue(0), 50);
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.replace("/login");
+  };
+
   return (
     <View style={{ flex: 1 }}>
       {/* HEADER */}
@@ -265,7 +271,9 @@ export default function WarehouseScene() {
           style={styles.profileBtn}
           onPress={() => setProfileVisible(true)}
         >
-          <Text style={styles.profileText}>👤 {firebaseUser?.email}</Text>
+          <Text style={styles.profileText}>
+            👤 {firebaseUser?.displayName || firebaseUser?.email}
+          </Text>
         </TouchableOpacity>
 
         <Modal visible={profileVisible} animationType="slide" transparent>
@@ -281,7 +289,7 @@ export default function WarehouseScene() {
                   style={styles.input}
                   value={nameInput}
                   onChangeText={setNameInput}
-                  placeholder="Enter username"
+                  placeholder="Enter Display Name"
                 />
 
                 <Text style={styles.label}>Email</Text>

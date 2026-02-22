@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import React from "react";
 import {
   Alert,
@@ -9,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { auth } from "../src/firebase/config";
+import { auth, db } from "../src/firebase/config";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -18,12 +19,27 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Error", "Please enter email and password");
+      Alert.alert("Error", "Please enter username/email and password");
       return;
     }
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      let loginEmail = email.trim().toLowerCase();
+
+      // If input does NOT contain @ → treat as username
+      if (!loginEmail.includes("@")) {
+        const usernameSnap = await getDoc(doc(db, "usernames", loginEmail));
+
+        if (!usernameSnap.exists()) {
+          Alert.alert("Error", "Username not found");
+          return;
+        }
+
+        loginEmail = usernameSnap.data().email;
+      }
+
+      await signInWithEmailAndPassword(auth, loginEmail, password);
+
       router.replace("/");
     } catch (error: any) {
       Alert.alert("Login Failed", error.message);
@@ -35,7 +51,7 @@ export default function LoginScreen() {
       <Text style={styles.title}>Warehouse Seva</Text>
 
       <TextInput
-        placeholder="Enter your email"
+        placeholder="Enter email or username"
         placeholderTextColor="#999"
         style={styles.input}
         value={email}
