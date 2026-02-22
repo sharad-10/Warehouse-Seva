@@ -264,7 +264,16 @@ export default function WarehouseScene() {
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => setWarehouseModalVisible(true)}>
-          <Text style={styles.logoText}>{currentWarehouse?.name} ▼</Text>
+          <Text
+            style={[
+              styles.logoText,
+              warehouses.length === 0 && { color: "#fff", fontStyle: "italic" },
+            ]}
+          >
+            {warehouses.length === 0
+              ? "+ Add Warehouse"
+              : `${currentWarehouse?.name} ▼`}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
