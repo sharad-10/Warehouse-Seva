@@ -219,11 +219,12 @@ export default function WarehouseScene() {
 
   React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        router.replace("/login");
-      } else {
+      if (user) {
         setFirebaseUser(user);
+      } else {
+        setFirebaseUser(null);
       }
+
       setAuthLoading(false);
     });
 
@@ -238,6 +239,17 @@ export default function WarehouseScene() {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <Text>Loading...</Text>
+      </View>
+    );
+  }
+  if (authLoading) {
+    if (!firebaseUser) {
+      router.replace("/login");
+      return null;
+    }
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Checking session...</Text>
       </View>
     );
   }
