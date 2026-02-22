@@ -112,7 +112,7 @@ function Floor({
           setIsDragging(true);
         }}
         onPointerMove={() => {
-          if (!isDragging || !selectedRackId) return;
+          if (!editMode || !isDragging || !selectedRackId) return;
 
           const pos = calculatePosition();
           if (!pos) return;
@@ -122,7 +122,15 @@ function Floor({
           }
         }}
         onPointerUp={() => {
-          if (!isDragging || !dragPreviewPosition || !selectedRackId) return;
+          if (
+            !editMode ||
+            !isDragging ||
+            !dragPreviewPosition ||
+            !selectedRackId
+          ) {
+            setIsDragging(false);
+            return;
+          }
 
           updateRack(selectedRackId, {
             position: dragPreviewPosition,
@@ -149,6 +157,7 @@ function Floor({
    🏗 Warehouse Scene
 ========================= */
 export default function WarehouseScene() {
+  const [searchQuery, setSearchQuery] = React.useState("");
   const [authLoading, setAuthLoading] = React.useState(true);
   const [zoomValue, setZoomValue] = React.useState(60);
   const [editMode, setEditMode] = React.useState(false);
@@ -183,6 +192,15 @@ export default function WarehouseScene() {
   const [editingWarehouseId, setEditingWarehouseId] = React.useState<
     string | null
   >(null);
+
+  const filteredRacks = React.useMemo(() => {
+    if (!searchQuery.trim()) return racks;
+
+    return racks.filter((rack) =>
+      rack.name?.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [racks, searchQuery]);
+
   const [renameValue, setRenameValue] = React.useState("");
   const [firebaseUser, setFirebaseUser] = React.useState<any>(null);
 
@@ -240,6 +258,13 @@ export default function WarehouseScene() {
       setEmailInput(firebaseUser.email || "");
     }
   }, [firebaseUser]);
+
+  React.useEffect(() => {
+    if (!editMode) {
+      setDragPreviewPosition(null);
+      setSelectedRackId(null);
+    }
+  }, [editMode]);
 
   if (authLoading) {
     return (
@@ -413,7 +438,7 @@ export default function WarehouseScene() {
             <meshStandardMaterial color="#d4d4d4" />
           </mesh>
 
-          {racks.map((rack: any) => (
+          {filteredRacks.map((rack: any) => (
             <Rack
               key={rack.id}
               id={rack.id}
@@ -436,6 +461,7 @@ export default function WarehouseScene() {
             makeDefault
             enablePan={!editMode}
             enableRotate={!editMode}
+            enabled={!editMode}
             enableZoom={false}
             minDistance={10}
             maxDistance={80}
@@ -459,6 +485,26 @@ export default function WarehouseScene() {
         contentContainerStyle={{ padding: 15 }}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.searchContainer}>
+          <Text style={styles.searchIcon}>🔍</Text>
+
+          <TextInput
+            placeholder="Search rack by name"
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={styles.searchInput}
+          />
+
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery("")}
+              style={styles.clearButton}
+            >
+              <Text style={styles.clearText}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={styles.actionBtn}
@@ -502,9 +548,10 @@ export default function WarehouseScene() {
           </TouchableOpacity>
         </View>
 
-        <WarehouseStatsPanel racks={racks} />
+        <WarehouseStatsPanel racks={filteredRacks} />
+
         <RackInfoPanel
-          racks={racks}
+          racks={filteredRacks}
           selectedRackId={selectedRackId}
           updateRack={updateRack}
           deleteRack={deleteRack}
@@ -754,5 +801,43 @@ const styles = StyleSheet.create({
   secondaryBtn: {
     marginTop: 10,
     alignItems: "center",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "#E5E5E5",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+
+  searchIcon: {
+    fontSize: 16,
+    marginRight: 8,
+    color: "#888",
+  },
+
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 6,
+  },
+
+  clearButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+
+  clearText: {
+    fontSize: 16,
+    color: "#999",
   },
 });
