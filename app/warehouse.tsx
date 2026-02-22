@@ -1,6 +1,10 @@
 import { OrbitControls } from "@react-three/drei/native";
 import { Canvas, useThree } from "@react-three/fiber/native";
 import { useRouter } from "expo-router";
+import {
+  updateProfile as firebaseUpdateProfile,
+  updateEmail,
+} from "firebase/auth";
 import React from "react";
 import {
   Animated,
@@ -17,12 +21,15 @@ import {
   View,
 } from "react-native";
 import * as THREE from "three";
-import { useAuthStore } from "../src/store/useAuthStore";
+//import { useAuthStore } from "../src/store/useAuthStore";
 
+import { useRacks } from "@/src/hooks/useRacks";
+import { useWarehouses } from "@/src/hooks/useWarehouses";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import Rack from "../src/components/Rack";
 import RackInfoPanel from "../src/components/RackInfoPanel";
 import WarehouseStatsPanel from "../src/components/WarehouseStatsPanel";
-import { useWarehouseStore } from "../src/store/useWarehouseStore";
+import { auth } from "../src/firebase/config";
 
 /* =========================
    🔥 Zoom Controller
@@ -44,77 +51,92 @@ function ZoomController({ zoom }: { zoom: number }) {
 /* =========================
    🟢 Advanced Floor
 ========================= */
-function Floor() {
+function Floor({
+  racks,
+  selectedRackId,
+  updateRack,
+  editMode,
+  dragPreviewPosition,
+  setDragPreviewPosition,
+}: {
+  racks: any[];
+  selectedRackId: string | null;
+  updateRack: (id: string, data: any) => void;
+  editMode: boolean;
+  dragPreviewPosition: [number, number, number] | null;
+  setDragPreviewPosition: (pos: [number, number, number] | null) => void;
+}) {
   const { camera, raycaster, pointer } = useThree();
 
-  const selectedRack = useWarehouseStore((s) => s.selectedRack);
-  const moveRack = useWarehouseStore((s) => s.moveRack);
-  const warehouses = useWarehouseStore((s) => s.warehouses);
-  const selectedWarehouseId = useWarehouseStore((s) => s.selectedWarehouseId);
+  const [isDragging, setIsDragging] = React.useState(false);
 
-  const currentWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
-  const racks = currentWarehouse?.racks || [];
-  const editMode = useWarehouseStore((s) => s.editMode);
-
-  const [previewPosition, setPreviewPosition] = React.useState<
-    [number, number, number] | null
-  >(null);
-
-  const snap = 2;
+  const snap = 1;
   const wallLimit = 24;
-  const rackHalfSize = 1;
 
   const calculatePosition = () => {
     raycaster.setFromCamera(pointer, camera);
+
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const point = new THREE.Vector3();
+
     raycaster.ray.intersectPlane(plane, point);
-    if (!point) return null;
 
     let x = Math.round(point.x / snap) * snap;
     let z = Math.round(point.z / snap) * snap;
 
-    x = Math.max(
-      -wallLimit + rackHalfSize,
-      Math.min(wallLimit - rackHalfSize, x),
-    );
-    z = Math.max(
-      -wallLimit + rackHalfSize,
-      Math.min(wallLimit - rackHalfSize, z),
-    );
+    x = Math.max(-wallLimit, Math.min(wallLimit, x));
+    z = Math.max(-wallLimit, Math.min(wallLimit, z));
 
     return [x, 1, z] as [number, number, number];
   };
 
-  const isColliding = (pos: [number, number, number]) =>
-    racks.some(
-      (rack) =>
-        rack.id !== selectedRack &&
-        Math.abs(rack.position[0] - pos[0]) < rack.width / 2 + 1 &&
-        Math.abs(rack.position[2] - pos[2]) < rack.depth / 2 + 1,
-    );
+  const isColliding = (pos: [number, number, number]) => {
+    return racks.some((rack) => {
+      if (rack.id === selectedRackId) return false;
+
+      return (
+        Math.abs(rack.position[0] - pos[0]) < rack.width &&
+        Math.abs(rack.position[2] - pos[2]) < rack.depth
+      );
+    });
+  };
 
   return (
     <>
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
-        onPointerMove={() => {
-          if (!editMode || !selectedRack) return;
-          const pos = calculatePosition();
-          if (pos) setPreviewPosition(pos);
+        onPointerDown={(e) => {
+          if (!editMode || !selectedRackId) return;
+          e.stopPropagation();
+          setIsDragging(true);
         }}
-        onPointerDown={() => {
-          if (!editMode || !selectedRack || !previewPosition) return;
-          if (!isColliding(previewPosition)) {
-            moveRack(selectedRack, previewPosition);
+        onPointerMove={() => {
+          if (!isDragging || !selectedRackId) return;
+
+          const pos = calculatePosition();
+          if (!pos) return;
+
+          if (!isColliding(pos)) {
+            setDragPreviewPosition(pos);
           }
+        }}
+        onPointerUp={() => {
+          if (!isDragging || !dragPreviewPosition || !selectedRackId) return;
+
+          updateRack(selectedRackId, {
+            position: dragPreviewPosition,
+          });
+
+          setIsDragging(false);
+          setDragPreviewPosition(null);
         }}
       >
         <planeGeometry args={[60, 60]} />
         <meshStandardMaterial color={editMode ? "#d0e6ff" : "#d9d9d9"} />
       </mesh>
 
+      {/* Background */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
         <planeGeometry args={[500, 500]} />
         <meshStandardMaterial color="#DCE8D4" />
@@ -127,41 +149,51 @@ function Floor() {
    🏗 Warehouse Scene
 ========================= */
 export default function WarehouseScene() {
+  const [authLoading, setAuthLoading] = React.useState(true);
   const [zoomValue, setZoomValue] = React.useState(60);
+  const [editMode, setEditMode] = React.useState(false);
   const [warehouseModalVisible, setWarehouseModalVisible] =
     React.useState(false);
   const [newWarehouseName, setNewWarehouseName] = React.useState("");
   const router = useRouter();
 
-  const warehouses = useWarehouseStore((s) => s.warehouses);
-  const selectedWarehouseId = useWarehouseStore((s) => s.selectedWarehouseId);
-  const selectWarehouse = useWarehouseStore((s) => s.selectWarehouse);
-  const addWarehouse = useWarehouseStore((s) => s.addWarehouse);
-  const deleteWarehouse = useWarehouseStore((s) => s.deleteWarehouse);
+  const { warehouses, addWarehouse, deleteWarehouse, renameWarehouse } =
+    useWarehouses();
+
+  const [selectedWarehouseId, setSelectedWarehouseId] = React.useState<
+    string | null
+  >(null);
+
+  const [selectedRackId, setSelectedRackId] = React.useState<string | null>(
+    null,
+  );
+
+  const [dragPreviewPosition, setDragPreviewPosition] = React.useState<
+    [number, number, number] | null
+  >(null);
+
+  React.useEffect(() => {
+    if (!selectedWarehouseId && warehouses.length > 0) {
+      setSelectedWarehouseId(warehouses[0].id);
+    }
+  }, [warehouses]);
+
   const [profileVisible, setProfileVisible] = React.useState(false);
 
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
-  const updateProfile = useAuthStore((s) => s.updateProfile);
-
-  const [nameInput, setNameInput] = React.useState(user?.name || "");
+  const [nameInput, setNameInput] = React.useState("");
   const [passwordInput, setPasswordInput] = React.useState("");
 
   const currentWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
-
-  const racks = currentWarehouse?.racks || [];
-  const addRack = useWarehouseStore((s) => s.addRack);
-  const toggleEditMode = useWarehouseStore((s) => s.toggleEditMode);
-  const editMode = useWarehouseStore((s) => s.editMode);
-
-  const renameWarehouse = useWarehouseStore((s) => s.renameWarehouse);
+  const { racks, addRack, updateRack, deleteRack } =
+    useRacks(selectedWarehouseId);
   const [editingWarehouseId, setEditingWarehouseId] = React.useState<
     string | null
   >(null);
   const [renameValue, setRenameValue] = React.useState("");
+  const [firebaseUser, setFirebaseUser] = React.useState<any>(null);
 
-  const [emailInput, setEmailInput] = React.useState(user?.email || "");
-  const [phoneInput, setPhoneInput] = React.useState(user?.phone || "");
+  const [emailInput, setEmailInput] = React.useState("");
+  const [phoneInput, setPhoneInput] = React.useState("");
 
   const handleZoom = (value: number) => {
     setZoomValue(value);
@@ -186,13 +218,29 @@ export default function WarehouseScene() {
   ).current;
 
   React.useEffect(() => {
-    if (profileVisible && user) {
-      setNameInput(user.name);
-      setEmailInput(user.email);
-      setPhoneInput(user.phone);
-    }
-  }, [profileVisible]);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.replace("/login");
+      } else {
+        setFirebaseUser(user);
+      }
+      setAuthLoading(false);
+    });
 
+    return unsubscribe;
+  }, []);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.replace("/login");
+  };
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
   return (
     <View style={{ flex: 1 }}>
       {/* HEADER */}
@@ -205,7 +253,7 @@ export default function WarehouseScene() {
           style={styles.profileBtn}
           onPress={() => setProfileVisible(true)}
         >
-          <Text style={styles.profileText}>👤 {user?.name}</Text>
+          <Text style={styles.profileText}>👤 {firebaseUser?.email}</Text>
         </TouchableOpacity>
 
         <Modal visible={profileVisible} animationType="slide" transparent>
@@ -253,26 +301,28 @@ export default function WarehouseScene() {
 
                 <TouchableOpacity
                   style={styles.primaryBtn}
-                  onPress={() => {
+                  onPress={async () => {
+                    if (!firebaseUser) return;
+
                     if (!nameInput || !emailInput || !phoneInput) {
                       alert("All fields except password are required");
                       return;
                     }
 
-                    if (!/^[0-9]{10}$/.test(phoneInput)) {
-                      alert("Enter valid 10-digit phone number");
-                      return;
+                    try {
+                      await firebaseUpdateProfile(firebaseUser, {
+                        displayName: nameInput.trim(),
+                      });
+
+                      if (firebaseUser.email !== emailInput.trim()) {
+                        await updateEmail(firebaseUser, emailInput.trim());
+                      }
+
+                      alert("Profile updated");
+                      setProfileVisible(false);
+                    } catch (err) {
+                      alert("Error updating profile");
                     }
-
-                    updateProfile({
-                      name: nameInput.trim(),
-                      email: emailInput.trim(),
-                      phone: phoneInput.trim(),
-                      ...(passwordInput ? { password: passwordInput } : {}),
-                    });
-
-                    setPasswordInput("");
-                    setProfileVisible(false);
                   }}
                 >
                   <Text style={styles.btnText}>Save Changes</Text>
@@ -280,10 +330,7 @@ export default function WarehouseScene() {
 
                 <TouchableOpacity
                   style={styles.logoutBtn}
-                  onPress={() => {
-                    logout();
-                    router.replace("/login"); // 🔥 force redirect
-                  }}
+                  onPress={handleLogout}
                 >
                   <Text style={styles.logoutText}>Logout</Text>
                 </TouchableOpacity>
@@ -314,8 +361,14 @@ export default function WarehouseScene() {
             castShadow
           />
 
-          <Floor />
-
+          <Floor
+            racks={racks}
+            selectedRackId={selectedRackId}
+            updateRack={updateRack}
+            editMode={editMode}
+            dragPreviewPosition={dragPreviewPosition}
+            setDragPreviewPosition={setDragPreviewPosition}
+          />
           <mesh position={[0, 7.5, -25]} receiveShadow>
             <boxGeometry args={[60, 15, 1]} />
             <meshStandardMaterial color="#c9c9c9" />
@@ -331,8 +384,23 @@ export default function WarehouseScene() {
             <meshStandardMaterial color="#d4d4d4" />
           </mesh>
 
-          {racks.map((rack) => (
-            <Rack key={rack.id} id={rack.id} position={rack.position} />
+          {racks.map((rack: any) => (
+            <Rack
+              key={rack.id}
+              id={rack.id}
+              position={
+                rack.id === selectedRackId && dragPreviewPosition
+                  ? dragPreviewPosition
+                  : rack.position
+              }
+              stock={rack.stock}
+              bagsPerLevel={rack.bagsPerLevel}
+              width={rack.width}
+              depth={rack.depth}
+              expiryDate={rack.expiryDate}
+              isSelected={selectedRackId === rack.id}
+              onSelect={(id) => setSelectedRackId(id)}
+            />
           ))}
 
           <OrbitControls
@@ -363,7 +431,16 @@ export default function WarehouseScene() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.actionBtn} onPress={addRack}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => {
+              if (!selectedWarehouseId) {
+                alert("Please create or select a warehouse first");
+                return;
+              }
+              addRack();
+            }}
+          >
             <Text style={styles.btnText}>+ Rack</Text>
           </TouchableOpacity>
 
@@ -372,7 +449,7 @@ export default function WarehouseScene() {
               styles.actionBtn,
               { backgroundColor: editMode ? "#2ecc71" : "#eee" },
             ]}
-            onPress={toggleEditMode}
+            onPress={() => setEditMode(!editMode)}
           >
             <Text style={{ fontWeight: "bold" }}>
               {editMode ? "EDIT MODE ON" : "EDIT MODE OFF"}
@@ -396,8 +473,14 @@ export default function WarehouseScene() {
           </TouchableOpacity>
         </View>
 
-        <WarehouseStatsPanel />
-        <RackInfoPanel />
+        <WarehouseStatsPanel racks={racks} />
+        <RackInfoPanel
+          racks={racks}
+          selectedRackId={selectedRackId}
+          updateRack={updateRack}
+          deleteRack={deleteRack}
+          editMode={editMode}
+        />
       </ScrollView>
 
       {/* Warehouse Modal */}
@@ -425,7 +508,7 @@ export default function WarehouseScene() {
                   <TouchableOpacity
                     style={{ flex: 1 }}
                     onPress={() => {
-                      selectWarehouse(w.id);
+                      setSelectedWarehouseId(w.id);
                       setWarehouseModalVisible(false);
                     }}
                   >

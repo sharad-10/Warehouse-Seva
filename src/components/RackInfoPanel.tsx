@@ -8,56 +8,45 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useWarehouseStore } from "../store/useWarehouseStore";
 
-export default function RackInfoPanel() {
-  const selectedRack = useWarehouseStore((s) => s.selectedRack);
-  const warehouses = useWarehouseStore((s) => s.warehouses);
-  const selectedWarehouseId = useWarehouseStore((s) => s.selectedWarehouseId);
+type Props = {
+  racks: any[];
+  selectedRackId: string | null;
+  updateRack: (id: string, data: any) => void;
+  deleteRack: (id: string) => void;
+  editMode: boolean;
+};
 
-  const currentWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
-
-  const racks = currentWarehouse?.racks || [];
-
-  const updateRackName = useWarehouseStore((s) => s.updateRackName);
-  const updateRackDetails = useWarehouseStore((s) => s.updateRackDetails);
-  const addStock = useWarehouseStore((s) => s.addStock);
-  const removeStock = useWarehouseStore((s) => s.removeStock);
-  const updateBagsPerLevel = useWarehouseStore((s) => s.updateBagsPerLevel);
-  const deleteRack = useWarehouseStore((s) => s.deleteRack);
-  const updateRackSize = useWarehouseStore((s) => s.updateRackSize);
-  const editMode = useWarehouseStore((s) => s.editMode);
-
+export default function RackInfoPanel({
+  racks,
+  selectedRackId,
+  updateRack,
+  deleteRack,
+  editMode,
+}: Props) {
   const [collapsed, setCollapsed] = React.useState(true);
   const [showEntryPicker, setShowEntryPicker] = React.useState(false);
   const [showExpiryPicker, setShowExpiryPicker] = React.useState(false);
-
-  const formatDate = (date: Date) => date.toISOString().split("T")[0];
-
-  const rack = racks.find((r) => r.id === selectedRack);
-
   const [stockInput, setStockInput] = React.useState("");
+
+  const rack = racks.find((r) => r.id === selectedRackId);
 
   React.useEffect(() => {
     if (rack) {
-      setStockInput(rack.stock.toString());
+      setStockInput(rack.stock?.toString() || "0");
     }
   }, [rack?.stock]);
 
-  if (!selectedRack || !rack) return null;
+  if (!selectedRackId || !rack) return null;
+
+  const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
   const levels = Math.ceil(rack.stock / rack.bagsPerLevel);
   const width = rack.width ?? 1.5;
   const depth = rack.depth ?? 1;
 
-  /* =========================
-     💰 TOTAL VALUE
-  ========================= */
   const totalValue = rack.stock * (rack.rate || 0);
 
-  /* =========================
-     ⚠ EXPIRY LOGIC
-  ========================= */
   const today = new Date();
   const expiryDate = rack.expiryDate ? new Date(rack.expiryDate) : null;
 
@@ -89,7 +78,9 @@ export default function RackInfoPanel() {
           <TextInput
             style={styles.input}
             value={rack.name}
-            onChangeText={(text) => updateRackName(rack.id, text.trimStart())}
+            onChangeText={(text) =>
+              updateRack(rack.id, { name: text.trimStart() })
+            }
             placeholder="Enter rack name"
           />
         </View>
@@ -102,7 +93,6 @@ export default function RackInfoPanel() {
         >
           {editMode ? (
             <>
-              {/* SIZE (EDIT MODE) */}
               <View style={styles.divider} />
               <Text style={styles.sectionTitle}>Rack Size</Text>
 
@@ -112,14 +102,14 @@ export default function RackInfoPanel() {
               <View style={styles.row}>
                 <TouchableOpacity
                   style={styles.smallBtn}
-                  onPress={() => updateRackSize(rack.id, width - 0.5, depth)}
+                  onPress={() => updateRack(rack.id, { width: width - 0.5 })}
                 >
                   <Text>- Width</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.smallBtn}
-                  onPress={() => updateRackSize(rack.id, width + 0.5, depth)}
+                  onPress={() => updateRack(rack.id, { width: width + 0.5 })}
                 >
                   <Text>+ Width</Text>
                 </TouchableOpacity>
@@ -128,14 +118,14 @@ export default function RackInfoPanel() {
               <View style={styles.row}>
                 <TouchableOpacity
                   style={styles.smallBtn}
-                  onPress={() => updateRackSize(rack.id, width, depth - 0.5)}
+                  onPress={() => updateRack(rack.id, { depth: depth - 0.5 })}
                 >
                   <Text>- Depth</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.smallBtn}
-                  onPress={() => updateRackSize(rack.id, width, depth + 0.5)}
+                  onPress={() => updateRack(rack.id, { depth: depth + 0.5 })}
                 >
                   <Text>+ Depth</Text>
                 </TouchableOpacity>
@@ -143,7 +133,6 @@ export default function RackInfoPanel() {
             </>
           ) : (
             <>
-              {/* DETAILS */}
               <Text style={styles.sectionTitle}>Details</Text>
 
               {/* ENTRY DATE */}
@@ -165,7 +154,7 @@ export default function RackInfoPanel() {
                     onChange={(e, date) => {
                       setShowEntryPicker(false);
                       if (date) {
-                        updateRackDetails(rack.id, {
+                        updateRack(rack.id, {
                           entryDate: formatDate(date),
                         });
                       }
@@ -194,49 +183,13 @@ export default function RackInfoPanel() {
                     onChange={(e, date) => {
                       setShowExpiryPicker(false);
                       if (date) {
-                        updateRackDetails(rack.id, {
+                        updateRack(rack.id, {
                           expiryDate: formatDate(date),
                         });
                       }
                     }}
                   />
                 )}
-
-                {expiryDate && (
-                  <View
-                    style={[
-                      styles.expiryBox,
-                      isExpired
-                        ? styles.expired
-                        : isNearExpiry
-                          ? styles.nearExpiry
-                          : styles.safe,
-                    ]}
-                  >
-                    <Text style={styles.expiryText}>
-                      {isExpired
-                        ? "⚠ EXPIRED"
-                        : isNearExpiry
-                          ? `⚠ Expiring in ${daysToExpiry} days`
-                          : `Valid (${daysToExpiry} days left)`}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* RATE */}
-              <View style={styles.field}>
-                <Text style={styles.label}>Rate (₹ per bag)</Text>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="numeric"
-                  value={rack.rate?.toString() || ""}
-                  onChangeText={(text) =>
-                    updateRackDetails(rack.id, {
-                      rate: Number(text) || 0,
-                    })
-                  }
-                />
               </View>
 
               <View style={styles.divider} />
@@ -265,7 +218,7 @@ export default function RackInfoPanel() {
                 onPress={() => {
                   const newValue = Number(stockInput);
                   if (!isNaN(newValue) && newValue >= 0) {
-                    updateRackDetails(rack.id, { stock: newValue });
+                    updateRack(rack.id, { stock: newValue });
                   }
                 }}
               >
@@ -276,10 +229,9 @@ export default function RackInfoPanel() {
                 <TouchableOpacity
                   style={styles.smallBtn}
                   onPress={() =>
-                    updateBagsPerLevel(
-                      rack.id,
-                      Math.max(rack.bagsPerLevel - 1, 1),
-                    )
+                    updateRack(rack.id, {
+                      bagsPerLevel: Math.max(rack.bagsPerLevel - 1, 1),
+                    })
                   }
                 >
                   <Text>- Bags / Level</Text>
@@ -288,7 +240,9 @@ export default function RackInfoPanel() {
                 <TouchableOpacity
                   style={styles.smallBtn}
                   onPress={() =>
-                    updateBagsPerLevel(rack.id, rack.bagsPerLevel + 1)
+                    updateRack(rack.id, {
+                      bagsPerLevel: rack.bagsPerLevel + 1,
+                    })
                   }
                 >
                   <Text>+ Bags / Level</Text>
@@ -320,12 +274,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#F2E6B3",
   },
-
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
   },
-
   collapseBtn: {
     width: 40,
     height: 40,
@@ -335,15 +287,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 10,
   },
-
   collapseText: { fontWeight: "bold" },
-
   label: {
     fontSize: 12,
     color: "#666",
     marginBottom: 4,
   },
-
   input: {
     borderWidth: 1,
     borderColor: "#F2E6B3",
@@ -351,84 +300,52 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: "#FFFFFF",
   },
-
   field: { marginTop: 12 },
-
   sectionTitle: {
     fontWeight: "bold",
     marginBottom: 6,
     fontSize: 15,
   },
-
   divider: {
     height: 1,
     backgroundColor: "#e5e5e5",
     marginVertical: 15,
   },
-
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 10,
   },
-
   primaryBtn: {
     backgroundColor: "#F4B400",
     padding: 12,
     marginTop: 10,
     borderRadius: 10,
   },
-
   btnText: {
     color: "white",
     fontWeight: "bold",
   },
-
   smallBtn: {
     backgroundColor: "#FFF4CC",
     padding: 10,
     borderRadius: 10,
   },
-
   deleteBtn: {
-    backgroundColor: "#D84315", // keep red for delete (important UX rule)
+    backgroundColor: "#D84315",
     padding: 12,
     borderRadius: 12,
     alignItems: "center",
   },
-
   deleteText: {
     color: "white",
     fontWeight: "bold",
   },
-
   dateInput: {
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 10,
     padding: 10,
     backgroundColor: "#fafafa",
-  },
-
-  expiryBox: {
-    marginTop: 8,
-    padding: 8,
-    borderRadius: 8,
-  },
-
-  expired: {
-    backgroundColor: "#ffdddd",
-  },
-
-  nearExpiry: {
-    backgroundColor: "#fff3cd",
-  },
-
-  safe: {
-    backgroundColor: "#e8f5e9",
-  },
-
-  expiryText: {
-    fontWeight: "bold",
   },
 });

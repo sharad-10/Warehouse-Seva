@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import React from "react";
 import {
   Alert,
@@ -8,27 +9,24 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useAuthStore } from "../src/store/useAuthStore";
+import { auth } from "../src/firebase/config";
 
 export default function LoginScreen() {
-  const login = useAuthStore((s) => s.login);
   const router = useRouter();
-
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
 
-  const handleLogin = () => {
-    if (!email.trim() || !password.trim()) {
+  const handleLogin = async () => {
+    if (!email || !password) {
       Alert.alert("Error", "Please enter email and password");
       return;
     }
 
-    const success = login(email.trim(), password.trim());
-
-    if (success) {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       router.replace("/");
-    } else {
-      Alert.alert("Login Failed", "Invalid email or password");
+    } catch (error: any) {
+      Alert.alert("Login Failed", error.message);
     }
   };
 
@@ -37,13 +35,12 @@ export default function LoginScreen() {
       <Text style={styles.title}>Warehouse Seva</Text>
 
       <TextInput
-        placeholder="Enter your registered email"
+        placeholder="Enter your email"
         placeholderTextColor="#999"
         style={styles.input}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
-        keyboardType="email-address"
       />
 
       <TextInput
@@ -63,7 +60,7 @@ export default function LoginScreen() {
         style={styles.link}
         onPress={() => router.replace("/signup")}
       >
-        <Text>Don't have an account? Sign Up</Text>
+        <Text>Create new account</Text>
       </TouchableOpacity>
     </View>
   );

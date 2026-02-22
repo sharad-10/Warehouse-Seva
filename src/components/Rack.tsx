@@ -1,29 +1,30 @@
 import { useFrame } from "@react-three/fiber/native";
 import React, { useRef } from "react";
-import { useWarehouseStore } from "../store/useWarehouseStore";
 
 type RackProps = {
   id: string;
   position: [number, number, number];
+  stock: number;
+  bagsPerLevel: number;
+  width: number;
+  depth: number;
+  expiryDate?: string;
+  isSelected?: boolean;
+  onSelect?: (id: string) => void;
 };
 
-export default function Rack({ id, position }: RackProps) {
+export default function Rack({
+  id,
+  position,
+  stock,
+  bagsPerLevel,
+  width,
+  depth,
+  expiryDate,
+  isSelected = false,
+  onSelect,
+}: RackProps) {
   const meshRef = useRef<any>(null);
-
-  const selectedRack = useWarehouseStore((s) => s.selectedRack);
-  const warehouses = useWarehouseStore((s) => s.warehouses);
-  const selectedWarehouseId = useWarehouseStore((s) => s.selectedWarehouseId);
-
-  const currentWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
-
-  const racks = currentWarehouse?.racks || [];
-
-  const rackData = racks.find((r) => r.id === id);
-  if (!rackData) return null;
-
-  const { stock, bagsPerLevel, width, depth, expiryDate } = rackData;
-
-  const isSelected = selectedRack === id;
 
   /* =========================
      📦 Dynamic Height
@@ -50,11 +51,10 @@ export default function Rack({ id, position }: RackProps) {
   /* =========================
      🎨 Color Logic
   ========================= */
-  let baseColor = "#2ecc71"; // Safe green
+  let baseColor = "#2ecc71";
 
-  if (isNearExpiry) baseColor = "#f39c12"; // Orange
-  if (isExpired) baseColor = "#e74c3c"; // Red
-
+  if (isNearExpiry) baseColor = "#f39c12";
+  if (isExpired) baseColor = "#e74c3c";
   if (isSelected) baseColor = "#ff8800";
 
   /* =========================
@@ -63,19 +63,14 @@ export default function Rack({ id, position }: RackProps) {
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
 
-    // Selection scale animation
     const targetScale = isSelected ? 1.1 : 1;
 
     meshRef.current.scale.x += (targetScale - meshRef.current.scale.x) * 0.1;
-
     meshRef.current.scale.y += (targetScale - meshRef.current.scale.y) * 0.1;
-
     meshRef.current.scale.z += (targetScale - meshRef.current.scale.z) * 0.1;
 
-    // 🔥 Blinking effect for expired racks
     if (isExpired) {
       const blink = (Math.sin(clock.getElapsedTime() * 4) + 1) / 2;
-
       meshRef.current.material.opacity = 0.5 + blink * 0.5;
       meshRef.current.material.transparent = true;
     } else {
@@ -85,20 +80,14 @@ export default function Rack({ id, position }: RackProps) {
   });
 
   return (
-    <group>
-      <mesh
-        ref={meshRef}
-        position={[position[0], height / 2, position[2]]}
-        castShadow
-        onPointerDown={() => useWarehouseStore.getState().selectRack(id)}
-      >
-        <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial
-          color={baseColor}
-          metalness={0.4}
-          roughness={0.6}
-        />
-      </mesh>
-    </group>
+    <mesh
+      ref={meshRef}
+      position={[position[0], height / 2, position[2]]}
+      castShadow
+      onPointerDown={() => onSelect?.(id)}
+    >
+      <boxGeometry args={[width, height, depth]} />
+      <meshStandardMaterial color={baseColor} metalness={0.4} roughness={0.6} />
+    </mesh>
   );
 }

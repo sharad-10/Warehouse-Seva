@@ -1,17 +1,18 @@
 import { useRouter } from "expo-router";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import React from "react";
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useAuthStore } from "../src/store/useAuthStore";
+import { auth, db } from "../src/firebase/config";
 
 export default function SignupScreen() {
-  const signup = useAuthStore((s) => s.signup);
   const router = useRouter();
 
   const [email, setEmail] = React.useState("");
@@ -20,14 +21,9 @@ export default function SignupScreen() {
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!email || !username || !phone || !password || !confirmPassword) {
       Alert.alert("Error", "Please fill all fields");
-      return;
-    }
-
-    if (!/^[0-9]{10}$/.test(phone)) {
-      Alert.alert("Error", "Enter valid 10-digit phone number");
       return;
     }
 
@@ -36,17 +32,25 @@ export default function SignupScreen() {
       return;
     }
 
-    const success = signup(
-      email.trim(),
-      username.trim(),
-      phone.trim(),
-      password.trim(),
-    );
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
 
-    if (success) {
+      const user = userCredential.user;
+
+      await setDoc(doc(db, "users", user.uid), {
+        email,
+        name: username,
+        phone,
+        createdAt: new Date(),
+      });
+
       router.replace("/");
-    } else {
-      Alert.alert("Error", "User already exists");
+    } catch (error: any) {
+      Alert.alert("Signup Failed", error.message);
     }
   };
 
@@ -55,26 +59,21 @@ export default function SignupScreen() {
       <Text style={styles.title}>Create Account</Text>
 
       <TextInput
-        placeholder="Enter your email address"
-        placeholderTextColor="#999"
+        placeholder="Enter email"
         style={styles.input}
         value={email}
         onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
       />
 
       <TextInput
-        placeholder="Choose a username"
-        placeholderTextColor="#999"
+        placeholder="Enter username"
         style={styles.input}
         value={username}
         onChangeText={setUsername}
       />
 
       <TextInput
-        placeholder="Enter 10-digit phone number"
-        placeholderTextColor="#999"
+        placeholder="Enter phone number"
         style={styles.input}
         keyboardType="number-pad"
         value={phone}
@@ -82,8 +81,7 @@ export default function SignupScreen() {
       />
 
       <TextInput
-        placeholder="Create a password (min 6 characters)"
-        placeholderTextColor="#999"
+        placeholder="Enter password"
         style={styles.input}
         secureTextEntry
         value={password}
@@ -91,8 +89,7 @@ export default function SignupScreen() {
       />
 
       <TextInput
-        placeholder="Confirm your password"
-        placeholderTextColor="#999"
+        placeholder="Confirm password"
         style={styles.input}
         secureTextEntry
         value={confirmPassword}
@@ -107,7 +104,7 @@ export default function SignupScreen() {
         style={styles.link}
         onPress={() => router.replace("/login")}
       >
-        <Text>Already have an account? Login</Text>
+        <Text>Already have account? Login</Text>
       </TouchableOpacity>
     </View>
   );

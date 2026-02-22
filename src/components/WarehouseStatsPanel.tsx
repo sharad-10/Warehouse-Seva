@@ -1,29 +1,29 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useWarehouseStore } from "../store/useWarehouseStore";
 
-export default function WarehouseStatsPanel() {
-  const warehouses = useWarehouseStore((s) => s.warehouses);
-  const selectedWarehouseId = useWarehouseStore((s) => s.selectedWarehouseId);
+type Props = {
+  racks: any[];
+};
 
-  const currentWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
-
-  const racks = currentWarehouse?.racks || [];
+export default function WarehouseStatsPanel({ racks }: Props) {
   const [collapsed, setCollapsed] = React.useState(true);
 
   const totalRacks = racks.length;
 
-  const totalStock = racks.reduce((sum, r) => sum + r.stock, 0);
+  const totalStock = racks.reduce((sum, r) => sum + (r.stock || 0), 0);
 
   const totalLevels = racks.reduce((sum, r) => {
-    const levels = Math.ceil(r.stock / r.bagsPerLevel);
+    const levels = Math.ceil((r.stock || 0) / (r.bagsPerLevel || 1));
     return sum + levels;
   }, 0);
 
   /* =========================
      🔥 Floor Area Calculation
   ========================= */
-  const totalRackArea = racks.reduce((sum, r) => sum + r.width * r.depth, 0);
+  const totalRackArea = racks.reduce(
+    (sum, r) => sum + (r.width || 0) * (r.depth || 0),
+    0,
+  );
 
   const warehouseArea = 60 * 60; // floor size
   const usagePercent =
