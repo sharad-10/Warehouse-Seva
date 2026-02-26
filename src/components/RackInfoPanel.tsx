@@ -15,6 +15,7 @@ type Props = {
   updateRack: (id: string, data: any) => void;
   deleteRack: (id: string) => void;
   editMode: boolean;
+  userRole: "admin" | "edit" | "view";
 };
 
 export default function RackInfoPanel({
@@ -23,6 +24,7 @@ export default function RackInfoPanel({
   updateRack,
   deleteRack,
   editMode,
+  userRole,
 }: Props) {
   const [collapsed, setCollapsed] = React.useState(true);
   const [showEntryPicker, setShowEntryPicker] = React.useState(false);
@@ -76,11 +78,16 @@ export default function RackInfoPanel({
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>Rack Name</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              { backgroundColor: userRole === "view" ? "#f2f2f2" : "#FFFFFF" },
+            ]}
             value={rack.name}
-            onChangeText={(text) =>
-              updateRack(rack.id, { name: text.trimStart() })
-            }
+            editable={userRole !== "view"}
+            onChangeText={(text) => {
+              if (userRole === "view") return;
+              updateRack(rack.id, { name: text.trimStart() });
+            }}
             placeholder="Enter rack name"
           />
         </View>
@@ -139,8 +146,17 @@ export default function RackInfoPanel({
               <View style={styles.field}>
                 <Text style={styles.label}>Entry Date</Text>
                 <TouchableOpacity
-                  style={styles.dateInput}
-                  onPress={() => setShowEntryPicker(true)}
+                  style={[
+                    styles.dateInput,
+                    { opacity: userRole === "view" ? 0.5 : 1 },
+                  ]}
+                  onPress={() => {
+                    if (userRole === "view") {
+                      alert("View user cannot edit dates");
+                      return;
+                    }
+                    setShowEntryPicker(true);
+                  }}
                 >
                   <Text>{rack.entryDate || "Select Date"}</Text>
                 </TouchableOpacity>
@@ -167,7 +183,10 @@ export default function RackInfoPanel({
               <View style={styles.field}>
                 <Text style={styles.label}>Expiry Date</Text>
                 <TouchableOpacity
-                  style={styles.dateInput}
+                  style={[
+                    styles.dateInput,
+                    { opacity: userRole === "view" ? 0.5 : 1 },
+                  ]}
                   onPress={() => setShowExpiryPicker(true)}
                 >
                   <Text>{rack.expiryDate || "Select Date"}</Text>
@@ -181,7 +200,18 @@ export default function RackInfoPanel({
                     mode="date"
                     minimumDate={new Date()}
                     onChange={(e, date) => {
+                      // Always close picker first
                       setShowExpiryPicker(false);
+
+                      // If user is view → block update
+                      if (userRole === "view") {
+                        alert("View user cannot edit dates");
+                        return;
+                      }
+
+                      // Ignore cancel action (Android safety)
+                      if (e.type === "dismissed") return;
+
                       if (date) {
                         updateRack(rack.id, {
                           expiryDate: formatDate(date),
@@ -214,8 +244,17 @@ export default function RackInfoPanel({
               </View>
 
               <TouchableOpacity
-                style={styles.primaryBtn}
+                style={[
+                  styles.primaryBtn,
+                  { opacity: userRole === "view" ? 0.5 : 1 },
+                ]}
+                disabled={userRole === "view"}
                 onPress={() => {
+                  if (userRole === "view") {
+                    alert("View user cannot update stock");
+                    return;
+                  }
+
                   const newValue = Number(stockInput);
                   if (!isNaN(newValue) && newValue >= 0) {
                     updateRack(rack.id, { stock: newValue });
@@ -227,23 +266,32 @@ export default function RackInfoPanel({
 
               <View style={styles.row}>
                 <TouchableOpacity
-                  style={styles.smallBtn}
-                  onPress={() =>
+                  style={[
+                    styles.smallBtn,
+                    { opacity: userRole === "view" ? 0.5 : 1 },
+                  ]}
+                  disabled={userRole === "view"}
+                  onPress={() => {
+                    if (userRole === "view") return;
                     updateRack(rack.id, {
                       bagsPerLevel: Math.max(rack.bagsPerLevel - 1, 1),
-                    })
-                  }
+                    });
+                  }}
                 >
                   <Text>- Bags / Level</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.smallBtn}
-                  onPress={() =>
+                  style={[
+                    styles.smallBtn,
+                    { opacity: userRole === "view" ? 0.5 : 1 },
+                  ]}
+                  onPress={() => {
+                    if (userRole === "view") return;
                     updateRack(rack.id, {
                       bagsPerLevel: rack.bagsPerLevel + 1,
-                    })
-                  }
+                    });
+                  }}
                 >
                   <Text>+ Bags / Level</Text>
                 </TouchableOpacity>
@@ -251,12 +299,14 @@ export default function RackInfoPanel({
 
               <View style={styles.divider} />
 
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => deleteRack(rack.id)}
-              >
-                <Text style={styles.deleteText}>Remove Rack</Text>
-              </TouchableOpacity>
+              {userRole === "admin" && (
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => deleteRack(rack.id)}
+                >
+                  <Text style={styles.deleteText}>Remove Rack</Text>
+                </TouchableOpacity>
+              )}
             </>
           )}
         </ScrollView>

@@ -24,12 +24,21 @@ import * as THREE from "three";
 //import { useAuthStore } from "../src/store/useAuthStore";
 
 import { useRacks } from "@/src/hooks/useRacks";
+import { useUserRole } from "@/src/hooks/useUserRole";
 import { useWarehouses } from "@/src/hooks/useWarehouses";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  onSnapshot,
+  setDoc,
+} from "firebase/firestore";
 import Rack from "../src/components/Rack";
 import RackInfoPanel from "../src/components/RackInfoPanel";
 import WarehouseStatsPanel from "../src/components/WarehouseStatsPanel";
-import { auth } from "../src/firebase/config";
+import { auth, db } from "../src/firebase/config";
 
 /* =========================
    🔥 Zoom Controller
@@ -157,6 +166,10 @@ function Floor({
    🏗 Warehouse Scene
 ========================= */
 export default function WarehouseScene() {
+  const userRole = useUserRole();
+  const [renameModalVisible, setRenameModalVisible] = React.useState(false);
+  const [renameTargetUser, setRenameTargetUser] = React.useState<any>(null);
+  const [renameUsernameInput, setRenameUsernameInput] = React.useState("");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [authLoading, setAuthLoading] = React.useState(true);
   const [zoomValue, setZoomValue] = React.useState(60);
@@ -182,6 +195,12 @@ export default function WarehouseScene() {
   >(null);
 
   const [profileVisible, setProfileVisible] = React.useState(false);
+  const [staffModalVisible, setStaffModalVisible] = React.useState(false);
+  const [allUsers, setAllUsers] = React.useState<any[]>([]);
+  const [newSubUsername, setNewSubUsername] = React.useState("");
+  const [newSubRole, setNewSubRole] = React.useState<"admin" | "edit" | "view">(
+    "view",
+  );
 
   const [nameInput, setNameInput] = React.useState("");
   const [passwordInput, setPasswordInput] = React.useState("");
@@ -240,6 +259,20 @@ export default function WarehouseScene() {
     return unsubscribe;
   }, []);
 
+  React.useEffect(() => {
+    if (!firebaseUser) return;
+
+    const unsubscribe = onSnapshot(collection(db, "usernames"), (snapshot) => {
+      const users = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((u: any) => u.uid === firebaseUser.uid);
+
+      setAllUsers(users);
+    });
+
+    return unsubscribe;
+  }, [firebaseUser]);
+
   /* =========================
      🏭 Auto Select Warehouse (Fixed Position)
   ========================= */
@@ -284,6 +317,42 @@ export default function WarehouseScene() {
     router.replace("/login");
   };
 
+  const handleAddSubUser = async () => {
+    if (!firebaseUser) return;
+
+    if (!newSubUsername.trim()) {
+      alert("Enter username");
+      return;
+    }
+
+    const username = newSubUsername.trim().toLowerCase();
+
+    try {
+      // Check if username already exists
+      const usernameRef = doc(db, "usernames", username);
+      const snap = await getDoc(usernameRef);
+
+      if (snap.exists()) {
+        alert("Username already taken");
+        return;
+      }
+
+      // Create sub user entry
+      await setDoc(usernameRef, {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        role: newSubRole,
+        createdAt: new Date(),
+      });
+
+      alert("User added successfully");
+      setNewSubUsername("");
+      setNewSubRole("view");
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
   return (
     <View style={{ flex: 1 }}>
       {/* HEADER */}
@@ -310,6 +379,15 @@ export default function WarehouseScene() {
           </Text>
         </TouchableOpacity>
 
+        {userRole === "admin" && (
+          <TouchableOpacity
+            style={[styles.profileBtn, { marginLeft: 8 }]}
+            onPress={() => setStaffModalVisible(true)}
+          >
+            <Text style={styles.profileText}>👥 Staff</Text>
+          </TouchableOpacity>
+        )}
+
         <Modal visible={profileVisible} animationType="slide" transparent>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={styles.modalOverlay}>
@@ -325,41 +403,106 @@ export default function WarehouseScene() {
                   onChangeText={setNameInput}
                   placeholder="Enter Display Name"
                 />
+                {userRole === "admin" && (
+                  <>
+                    <Text style={styles.label}>Email</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={emailInput}
+                      onChangeText={setEmailInput}
+                      placeholder="Enter email"
+                      autoCapitalize="none"
+                    />
 
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  value={emailInput}
-                  onChangeText={setEmailInput}
-                  placeholder="Enter email"
-                  autoCapitalize="none"
-                />
+                    <Text style={styles.label}>Phone Number</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={phoneInput}
+                      onChangeText={setPhoneInput}
+                      placeholder="Enter phone number"
+                      keyboardType="number-pad"
+                    />
 
-                <Text style={styles.label}>Phone Number</Text>
-                <TextInput
-                  style={styles.input}
-                  value={phoneInput}
-                  onChangeText={setPhoneInput}
-                  placeholder="Enter phone number"
-                  keyboardType="number-pad"
-                />
+                    <Text style={styles.label}>New Password</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={passwordInput}
+                      onChangeText={setPasswordInput}
+                      placeholder="Enter new password"
+                      secureTextEntry
+                    />
+                  </>
+                )}
+                {/* ADD SUB USER SECTION */}
 
-                <Text style={styles.label}>New Password</Text>
-                <TextInput
-                  style={styles.input}
-                  value={passwordInput}
-                  onChangeText={setPasswordInput}
-                  placeholder="Enter new password"
-                  secureTextEntry
-                />
+                <Modal
+                  visible={renameModalVisible}
+                  transparent
+                  animationType="fade"
+                >
+                  <View style={styles.modalOverlay}>
+                    <View style={styles.profileModal}>
+                      <Text style={styles.modalTitle}>Rename User</Text>
 
+                      <TextInput
+                        style={styles.input}
+                        value={renameUsernameInput}
+                        onChangeText={setRenameUsernameInput}
+                        placeholder="Enter new username"
+                      />
+
+                      <TouchableOpacity
+                        style={styles.primaryBtn}
+                        onPress={async () => {
+                          if (!renameTargetUser) return;
+
+                          const lower = renameUsernameInput
+                            .trim()
+                            .toLowerCase();
+                          if (!lower) return;
+
+                          const snap = await getDoc(
+                            doc(db, "usernames", lower),
+                          );
+                          if (snap.exists()) {
+                            alert("Username already taken");
+                            return;
+                          }
+
+                          // Copy data
+                          const { id, ...restData } = renameTargetUser;
+
+                          await setDoc(doc(db, "usernames", lower), {
+                            ...restData,
+                          });
+
+                          // Delete old
+                          await deleteDoc(
+                            doc(db, "usernames", renameTargetUser.id),
+                          );
+
+                          setRenameModalVisible(false);
+                        }}
+                      >
+                        <Text style={styles.btnText}>Save</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.secondaryBtn}
+                        onPress={() => setRenameModalVisible(false)}
+                      >
+                        <Text>Cancel</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Modal>
                 <TouchableOpacity
                   style={styles.primaryBtn}
                   onPress={async () => {
                     if (!firebaseUser) return;
 
-                    if (!nameInput || !emailInput || !phoneInput) {
-                      alert("All fields except password are required");
+                    if (!nameInput) {
+                      alert("Username is required");
                       return;
                     }
 
@@ -368,8 +511,10 @@ export default function WarehouseScene() {
                         displayName: nameInput.trim(),
                       });
 
-                      if (firebaseUser.email !== emailInput.trim()) {
-                        await updateEmail(firebaseUser, emailInput.trim());
+                      if (userRole === "admin") {
+                        if (firebaseUser.email !== emailInput.trim()) {
+                          await updateEmail(firebaseUser, emailInput.trim());
+                        }
                       }
 
                       alert("Profile updated");
@@ -398,6 +543,139 @@ export default function WarehouseScene() {
               </View>
             </View>
           </TouchableWithoutFeedback>
+        </Modal>
+
+        <Modal visible={staffModalVisible} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContainer, { maxHeight: "85%" }]}>
+              <Text style={styles.modalTitle}>Staff Management</Text>
+
+              <Text style={{ marginBottom: 10 }}>
+                Total Staff Users: {allUsers.length}
+              </Text>
+
+              <ScrollView
+                style={{ maxHeight: 250 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {allUsers.map((u: any) => {
+                  const isLastAdmin =
+                    u.role === "admin" &&
+                    allUsers.filter((x) => x.role === "admin").length <= 1;
+
+                  const isSelf =
+                    u.id === (firebaseUser?.displayName || "").toLowerCase();
+
+                  return (
+                    <View
+                      key={`${u.id}-${u.uid}`}
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: 10,
+                        marginBottom: 8,
+                        backgroundColor: "#FFF4CC",
+                        borderRadius: 10,
+                      }}
+                    >
+                      <Text>
+                        {u.id} ({u.role})
+                      </Text>
+
+                      <View style={{ flexDirection: "row" }}>
+                        {/* Change Role */}
+                        <TouchableOpacity
+                          onPress={async () => {
+                            if (isLastAdmin) {
+                              alert("At least one admin is required.");
+                              return;
+                            }
+
+                            const nextRole =
+                              u.role === "admin"
+                                ? "edit"
+                                : u.role === "edit"
+                                  ? "view"
+                                  : "admin";
+
+                            await setDoc(
+                              doc(db, "usernames", u.id),
+                              { role: nextRole },
+                              { merge: true },
+                            );
+                          }}
+                          style={{ marginRight: 12 }}
+                        >
+                          <Text style={{ color: "#2E7D32" }}>Change</Text>
+                        </TouchableOpacity>
+
+                        {/* Delete Staff */}
+                        <TouchableOpacity
+                          onPress={async () => {
+                            if (isLastAdmin) {
+                              alert("Cannot delete the last admin.");
+                              return;
+                            }
+
+                            if (isSelf) {
+                              alert("You cannot delete yourself.");
+                              return;
+                            }
+
+                            await deleteDoc(doc(db, "usernames", u.id));
+                          }}
+                        >
+                          <Text style={{ color: "red" }}>Delete</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Add New Staff */}
+              <TextInput
+                style={styles.input}
+                placeholder="Enter username"
+                value={newSubUsername}
+                onChangeText={setNewSubUsername}
+              />
+
+              <View style={{ flexDirection: "row", marginBottom: 10 }}>
+                {["admin", "edit", "view"].map((role) => (
+                  <TouchableOpacity
+                    key={role}
+                    style={{
+                      marginRight: 12,
+                      padding: 8,
+                      backgroundColor: newSubRole === role ? "#F4B400" : "#eee",
+                      borderRadius: 8,
+                    }}
+                    onPress={() =>
+                      setNewSubRole(role as "admin" | "edit" | "view")
+                    }
+                  >
+                    <Text>{role.toUpperCase()}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={handleAddSubUser}
+              >
+                <Text style={styles.btnText}>Add User</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => setStaffModalVisible(false)}
+              >
+                <Text>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </Modal>
       </View>
 
@@ -507,12 +785,22 @@ export default function WarehouseScene() {
         </View>
         <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={styles.actionBtn}
+            style={[
+              styles.actionBtn,
+              { opacity: userRole === "view" ? 0.5 : 1 },
+            ]}
+            disabled={userRole === "view"}
             onPress={() => {
+              if (userRole === "view") {
+                alert("View user cannot add rack");
+                return;
+              }
+
               if (!selectedWarehouseId) {
                 alert("Please create or select a warehouse first");
                 return;
               }
+
               addRack();
             }}
           >
@@ -522,9 +810,20 @@ export default function WarehouseScene() {
           <TouchableOpacity
             style={[
               styles.actionBtn,
-              { backgroundColor: editMode ? "#2ecc71" : "#eee" },
+              {
+                backgroundColor: editMode ? "#2ecc71" : "#eee",
+                opacity: userRole === "view" ? 0.5 : 1,
+              },
             ]}
-            onPress={() => setEditMode(!editMode)}
+            disabled={userRole === "view"}
+            onPress={() => {
+              if (userRole === "view") {
+                alert("View user cannot enable edit mode");
+                return;
+              }
+
+              setEditMode(!editMode);
+            }}
           >
             <Text style={{ fontWeight: "bold" }}>
               {editMode ? "EDIT MODE ON" : "EDIT MODE OFF"}
@@ -556,6 +855,7 @@ export default function WarehouseScene() {
           updateRack={updateRack}
           deleteRack={deleteRack}
           editMode={editMode}
+          userRole={userRole}
         />
       </ScrollView>
 
@@ -613,7 +913,7 @@ export default function WarehouseScene() {
                 )}
 
                 {/* Delete Button */}
-                {warehouses.length > 1 && (
+                {warehouses.length > 1 && userRole === "admin" && (
                   <TouchableOpacity onPress={() => deleteWarehouse(w.id)}>
                     <Text style={{ color: "red" }}>Delete</Text>
                   </TouchableOpacity>
@@ -629,8 +929,17 @@ export default function WarehouseScene() {
             />
 
             <TouchableOpacity
-              style={styles.primaryBtn}
+              style={[
+                styles.primaryBtn,
+                { opacity: userRole === "admin" ? 1 : 0.5 },
+              ]}
+              disabled={userRole !== "admin"}
               onPress={() => {
+                if (userRole !== "admin") {
+                  alert("Only admin can add warehouse");
+                  return;
+                }
+
                 if (newWarehouseName.trim()) {
                   addWarehouse(newWarehouseName.trim());
                   setNewWarehouseName("");

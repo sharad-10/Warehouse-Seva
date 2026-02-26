@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import React from "react";
 import {
   Alert,
@@ -39,6 +39,31 @@ export default function LoginScreen() {
       }
 
       await signInWithEmailAndPassword(auth, loginEmail, password);
+
+      const inputValue = email.trim().toLowerCase();
+
+      // If login was via username
+      if (!inputValue.includes("@")) {
+        const usernameSnap = await getDoc(doc(db, "usernames", inputValue));
+
+        if (usernameSnap.exists()) {
+          const role = usernameSnap.data().role;
+
+          // Save currentRole inside user document
+          await setDoc(
+            doc(db, "users", auth.currentUser!.uid),
+            { currentRole: role },
+            { merge: true },
+          );
+        }
+      } else {
+        // If login via email → treat as admin
+        await setDoc(
+          doc(db, "users", auth.currentUser!.uid),
+          { currentRole: "admin" },
+          { merge: true },
+        );
+      }
 
       router.replace("/");
     } catch (error: any) {

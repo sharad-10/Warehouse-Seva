@@ -54,17 +54,17 @@ export default function SignupScreen() {
       // 3️⃣ Save user data
       await setDoc(doc(db, "users", user.uid), {
         email,
-        username: username.toLowerCase(),
         phone,
         createdAt: new Date(),
+        currentRole: "admin", // 👈 First login role
       });
 
       // 4️⃣ Create username → email mapping
       await setDoc(usernameRef, {
         uid: user.uid,
         email,
+        role: "admin", // 👈 FIRST USER = ADMIN
       });
-
       router.replace("/");
     } catch (error: any) {
       Alert.alert("Signup Failed", error.message);
