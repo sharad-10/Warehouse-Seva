@@ -67,6 +67,10 @@ function Floor({
   editMode,
   dragPreviewPosition,
   setDragPreviewPosition,
+  stickCols,
+  stickRows,
+  stickWidth,
+  stickLength
 }: {
   racks: any[];
   selectedRackId: string | null;
@@ -74,6 +78,10 @@ function Floor({
   editMode: boolean;
   dragPreviewPosition: [number, number, number] | null;
   setDragPreviewPosition: (pos: [number, number, number] | null) => void;
+  stickRows: number;
+  stickCols: number;
+  stickWidth: number;
+  stickLength: number;
 }) {
   const { camera, raycaster, pointer } = useThree();
 
@@ -149,7 +157,7 @@ function Floor({
           setDragPreviewPosition(null);
         }}
       >
-        <planeGeometry args={[60, 60]} />
+        <planeGeometry args={[stickWidth * stickCols, stickLength * stickRows]} />
         <meshStandardMaterial color={editMode ? "#d0e6ff" : "#d9d9d9"} />
       </mesh>
 
@@ -178,22 +186,17 @@ export default function WarehouseScene() {
     React.useState(false);
   const [newWarehouseName, setNewWarehouseName] = React.useState("");
   const router = useRouter();
-
   const { warehouses, addWarehouse, deleteWarehouse, renameWarehouse } =
     useWarehouses();
-
   const [selectedWarehouseId, setSelectedWarehouseId] = React.useState<
     string | null
   >(null);
-
   const [selectedRackId, setSelectedRackId] = React.useState<string | null>(
     null,
   );
-
   const [dragPreviewPosition, setDragPreviewPosition] = React.useState<
     [number, number, number] | null
   >(null);
-
   const [profileVisible, setProfileVisible] = React.useState(false);
   const [staffModalVisible, setStaffModalVisible] = React.useState(false);
   const [allUsers, setAllUsers] = React.useState<any[]>([]);
@@ -201,16 +204,36 @@ export default function WarehouseScene() {
   const [newSubRole, setNewSubRole] = React.useState<"admin" | "edit" | "view">(
     "view",
   );
-
   const [nameInput, setNameInput] = React.useState("");
   const [passwordInput, setPasswordInput] = React.useState("");
-
   const currentWarehouse = warehouses.find((w) => w.id === selectedWarehouseId);
   const { racks, addRack, updateRack, deleteRack } =
     useRacks(selectedWarehouseId);
   const [editingWarehouseId, setEditingWarehouseId] = React.useState<
     string | null
   >(null);
+
+  const STICK_LENGTH = 60;
+  const STICK_WIDTH = 45;
+
+  // Stick grid layout
+  const [stickRows, setStickRows] = React.useState(3);
+  const [stickCols, setStickCols] = React.useState(1);
+
+  // layout modal
+  const [layoutModalVisible, setLayoutModalVisible] = React.useState(false);
+  const [rowInput, setRowInput] = React.useState("3");
+  const [colInput, setColInput] = React.useState("1");
+
+  const createStickLayout = () => {
+    const rows = Math.max(1, parseInt(rowInput) || 1);
+    const cols = Math.max(1, parseInt(colInput) || 1);
+
+    setStickRows(rows);
+    setStickCols(cols);
+
+    setLayoutModalVisible(false);
+  };
 
   const filteredRacks = React.useMemo(() => {
     if (!searchQuery.trim()) return racks;
@@ -352,6 +375,8 @@ export default function WarehouseScene() {
       alert(error.message);
     }
   };
+
+
 
   return (
     <View style={{ flex: 1 }}>
@@ -677,10 +702,52 @@ export default function WarehouseScene() {
             </View>
           </View>
         </Modal>
+
+        {/* Stick Layout Modal */}
+        <Modal visible={layoutModalVisible} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+
+              <Text style={styles.modalTitle}>Create Stick Layout</Text>
+
+              <Text style={styles.label}>Rows</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="number-pad"
+                value={rowInput}
+                onChangeText={setRowInput}
+              />
+
+              <Text style={styles.label}>Columns</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="number-pad"
+                value={colInput}
+                onChangeText={setColInput}
+              />
+
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={createStickLayout}
+              >
+                <Text style={styles.btnText}>Create Layout</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => setLayoutModalVisible(false)}
+              >
+                <Text>Cancel</Text>
+              </TouchableOpacity>
+
+            </View>
+          </View>
+        </Modal>
       </View>
 
       {/* 3D VIEW */}
       <Animated.View style={{ height: modelHeight }}>
+
         <Canvas
           shadows
           camera={{ position: [15, 20, 25], fov: 50 }}
@@ -700,8 +767,47 @@ export default function WarehouseScene() {
             editMode={editMode}
             dragPreviewPosition={dragPreviewPosition}
             setDragPreviewPosition={setDragPreviewPosition}
+            stickRows={stickRows}
+            stickCols={stickCols}
+            stickWidth={STICK_WIDTH}
+            stickLength={STICK_LENGTH}
           />
-          <mesh position={[0, 7.5, -25]} receiveShadow>
+
+          {/* Horizontal lines */}
+          {Array.from({ length: stickRows + 1 }).map((_, i) => {
+            const z =
+              -(STICK_LENGTH * stickRows) / 2 + i * STICK_LENGTH;
+
+            return (
+              <mesh
+                key={`h-${i}`}
+                position={[0, 0.03, z]}
+                rotation={[-Math.PI / 2, 0, 0]}
+              >
+                <planeGeometry args={[STICK_WIDTH * stickCols, 0.15]} />
+                <meshStandardMaterial color="#000" />
+              </mesh>
+            );
+          })}
+
+          {/* Vertical lines */}
+          {Array.from({ length: stickCols + 1 }).map((_, i) => {
+            const x =
+              -(STICK_WIDTH * stickCols) / 2 + i * STICK_WIDTH;
+
+            return (
+              <mesh
+                key={`v-${i}`}
+                position={[x, 0.03, 0]}
+                rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+              >
+                <planeGeometry args={[STICK_LENGTH * stickRows, 0.15]} />
+                <meshStandardMaterial color="#000" />
+              </mesh>
+            );
+          })}
+
+          {/* <mesh position={[0, 7.5, -25]} receiveShadow>
             <boxGeometry args={[60, 15, 1]} />
             <meshStandardMaterial color="#c9c9c9" />
           </mesh>
@@ -714,7 +820,7 @@ export default function WarehouseScene() {
           <mesh position={[25, 7.5, 0]} receiveShadow>
             <boxGeometry args={[1, 15, 60]} />
             <meshStandardMaterial color="#d4d4d4" />
-          </mesh>
+          </mesh> */}
 
           {filteredRacks.map((rack: any) => (
             <Rack
@@ -806,7 +912,12 @@ export default function WarehouseScene() {
           >
             <Text style={styles.btnText}>+ Rack</Text>
           </TouchableOpacity>
-
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => setLayoutModalVisible(true)}
+          >
+            <Text style={styles.btnText}>Create Layout</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.actionBtn,
