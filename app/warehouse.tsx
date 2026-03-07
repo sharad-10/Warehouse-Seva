@@ -1,4 +1,3 @@
-import { OrbitControls } from "@react-three/drei/native";
 import { Canvas, useThree } from "@react-three/fiber/native";
 import { useRouter } from "expo-router";
 import {
@@ -35,27 +34,62 @@ import {
   onSnapshot,
   setDoc,
 } from "firebase/firestore";
+import {
+  PanGestureHandler,
+  PinchGestureHandler,
+} from "react-native-gesture-handler";
 import Rack from "../src/components/Rack";
 import RackInfoPanel from "../src/components/RackInfoPanel";
 import WarehouseStatsPanel from "../src/components/WarehouseStatsPanel";
 import { auth, db } from "../src/firebase/config";
 
-/* =========================
-   🔥 Zoom Controller
-========================= */
-function ZoomController({ zoom }: { zoom: number }) {
+type Props = {
+  zoom: number;
+  panX: number;
+  panY: number;
+  rotateX: number;
+  rotateY: number;
+  editMode: boolean;
+};
+
+function WarehouseCameraController({
+  zoom,
+  panX,
+  panY,
+  rotateX,
+  rotateY,
+  editMode,
+}: Props) {
   const { camera } = useThree();
 
   React.useEffect(() => {
-    if (zoom !== 0) {
-      const direction = new THREE.Vector3();
-      camera.getWorldDirection(direction);
-      camera.position.addScaledVector(direction, -zoom * 2);
-    }
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+
+    camera.position.addScaledVector(direction, -zoom * 1.5);
+    camera.position.clampLength(10, 200);
   }, [zoom, camera]);
+
+  React.useEffect(() => {
+    camera.position.x += panX * 0.002;
+    camera.position.z += panY * 0.002;
+  }, [panX, panY, camera]);
+
+  React.useEffect(() => {
+    if (editMode) return; // 🚫 disable rotation in edit mode
+
+    camera.rotation.y += rotateX * 0.00008;
+    camera.rotation.x += rotateY * 0.00008;
+
+    camera.rotation.x = Math.max(
+      -Math.PI / 4,
+      Math.min(Math.PI / 3, camera.rotation.x)
+    );
+  }, [rotateX, rotateY, camera, editMode]);
 
   return null;
 }
+
 
 /* =========================
    🟢 Advanced Floor
@@ -175,12 +209,16 @@ function Floor({
 ========================= */
 export default function WarehouseScene() {
   const userRole = useUserRole();
+  const [zoom, setZoom] = React.useState(0);
+  const [panX, setPanX] = React.useState(0);
+  const [panY, setPanY] = React.useState(0);
+  const [rotateX, setRotateX] = React.useState(0);
+  const [rotateY, setRotateY] = React.useState(0);
   const [renameModalVisible, setRenameModalVisible] = React.useState(false);
   const [renameTargetUser, setRenameTargetUser] = React.useState<any>(null);
   const [renameUsernameInput, setRenameUsernameInput] = React.useState("");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [authLoading, setAuthLoading] = React.useState(true);
-  const [zoomValue, setZoomValue] = React.useState(60);
   const [editMode, setEditMode] = React.useState(false);
   const [warehouseModalVisible, setWarehouseModalVisible] =
     React.useState(false);
@@ -329,11 +367,6 @@ export default function WarehouseScene() {
       </View>
     );
   }
-
-  const handleZoom = (value: number) => {
-    setZoomValue(value);
-    setTimeout(() => setZoomValue(0), 50);
-  };
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -747,115 +780,124 @@ export default function WarehouseScene() {
 
       {/* 3D VIEW */}
       <Animated.View style={{ height: modelHeight }}>
-
-        <Canvas
-          shadows
-          camera={{ position: [15, 20, 25], fov: 50 }}
-          style={{ backgroundColor: "#EAF6FF" }}
+        <PinchGestureHandler
+          onGestureEvent={(e) => {
+            setZoom((e.nativeEvent.scale - 1) * 2);
+          }}
+          onEnded={() => setZoom(0)}
         >
-          <ambientLight intensity={0.3} />
-          <directionalLight
-            position={[10, 30, 10]}
-            intensity={1.4}
-            castShadow
-          />
-
-          <Floor
-            racks={racks}
-            selectedRackId={selectedRackId}
-            updateRack={updateRack}
-            editMode={editMode}
-            dragPreviewPosition={dragPreviewPosition}
-            setDragPreviewPosition={setDragPreviewPosition}
-            stickRows={stickRows}
-            stickCols={stickCols}
-            stickWidth={STICK_WIDTH}
-            stickLength={STICK_LENGTH}
-          />
-
-          {/* Horizontal lines */}
-          {Array.from({ length: stickRows + 1 }).map((_, i) => {
-            const z =
-              -(STICK_LENGTH * stickRows) / 2 + i * STICK_LENGTH;
-
-            return (
-              <mesh
-                key={`h-${i}`}
-                position={[0, 0.03, z]}
-                rotation={[-Math.PI / 2, 0, 0]}
-              >
-                <planeGeometry args={[STICK_WIDTH * stickCols, 0.15]} />
-                <meshStandardMaterial color="#000" />
-              </mesh>
-            );
-          })}
-
-          {/* Vertical lines */}
-          {Array.from({ length: stickCols + 1 }).map((_, i) => {
-            const x =
-              -(STICK_WIDTH * stickCols) / 2 + i * STICK_WIDTH;
-
-            return (
-              <mesh
-                key={`v-${i}`}
-                position={[x, 0.03, 0]}
-                rotation={[-Math.PI / 2, 0, Math.PI / 2]}
-              >
-                <planeGeometry args={[STICK_LENGTH * stickRows, 0.15]} />
-                <meshStandardMaterial color="#000" />
-              </mesh>
-            );
-          })}
-
-          {/* <mesh position={[0, 7.5, -25]} receiveShadow>
-            <boxGeometry args={[60, 15, 1]} />
-            <meshStandardMaterial color="#c9c9c9" />
-          </mesh>
-
-          <mesh position={[-25, 7.5, 0]} receiveShadow>
-            <boxGeometry args={[1, 15, 60]} />
-            <meshStandardMaterial color="#d4d4d4" />
-          </mesh>
-
-          <mesh position={[25, 7.5, 0]} receiveShadow>
-            <boxGeometry args={[1, 15, 60]} />
-            <meshStandardMaterial color="#d4d4d4" />
-          </mesh> */}
-
-          {filteredRacks.map((rack: any) => (
-            <Rack
-              key={rack.id}
-              id={rack.id}
-              position={
-                rack.id === selectedRackId && dragPreviewPosition
-                  ? dragPreviewPosition
-                  : rack.position
+          <PanGestureHandler
+            onGestureEvent={(e) => {
+              if (e.nativeEvent.numberOfPointers === 1) {
+                setRotateX(e.nativeEvent.velocityX);
+                setRotateY(e.nativeEvent.velocityY);
               }
-              stock={rack.stock}
-              bagsPerLevel={rack.bagsPerLevel}
-              width={rack.width}
-              depth={rack.depth}
-              expiryDate={rack.expiryDate}
-              isSelected={selectedRackId === rack.id}
-              onSelect={(id) => setSelectedRackId(id)}
-            />
-          ))}
 
-          <OrbitControls
-            makeDefault
-            enablePan={!editMode}
-            enableRotate={!editMode}
-            enabled={!editMode}
-            enableZoom={false}
-            minDistance={10}
-            maxDistance={80}
-            maxPolarAngle={Math.PI / 2.2}
-            enableDamping
-            dampingFactor={0.08}
-          />
+              if (e.nativeEvent.numberOfPointers === 2) {
+                setPanX(e.nativeEvent.velocityX);
+                setPanY(e.nativeEvent.velocityY);
+              }
+            }}
+            onEnded={() => {
+              setRotateX(0);
+              setRotateY(0);
+              setPanX(0);
+              setPanY(0);
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Canvas
+                frameloop="always"
+                shadows
+                camera={{ position: [15, 20, 25], fov: 50 }}
+                style={{ backgroundColor: "#EAF6FF" }}
+              >
+                <WarehouseCameraController
+                  zoom={zoom}
+                  panX={panX}
+                  panY={panY}
+                  rotateX={rotateX}
+                  rotateY={rotateY}
+                  editMode={editMode}
+                />
 
-          <ZoomController zoom={zoomValue} />
-        </Canvas>
+                <ambientLight intensity={0.3} />
+
+                <directionalLight
+                  position={[10, 30, 10]}
+                  intensity={1.4}
+                  castShadow
+                />
+
+                <Floor
+                  racks={racks}
+                  selectedRackId={selectedRackId}
+                  updateRack={updateRack}
+                  editMode={editMode}
+                  dragPreviewPosition={dragPreviewPosition}
+                  setDragPreviewPosition={setDragPreviewPosition}
+                  stickRows={stickRows}
+                  stickCols={stickCols}
+                  stickWidth={STICK_WIDTH}
+                  stickLength={STICK_LENGTH}
+                />
+
+                {/* Horizontal lines */}
+                {Array.from({ length: stickRows + 1 }).map((_, i) => {
+                  const z =
+                    -(STICK_LENGTH * stickRows) / 2 + i * STICK_LENGTH;
+
+                  return (
+                    <mesh
+                      key={`h-${i}`}
+                      position={[0, 0.03, z]}
+                      rotation={[-Math.PI / 2, 0, 0]}
+                    >
+                      <planeGeometry args={[STICK_WIDTH * stickCols, 0.15]} />
+                      <meshStandardMaterial color="#000" />
+                    </mesh>
+                  );
+                })}
+
+                {/* Vertical lines */}
+                {Array.from({ length: stickCols + 1 }).map((_, i) => {
+                  const x =
+                    -(STICK_WIDTH * stickCols) / 2 + i * STICK_WIDTH;
+
+                  return (
+                    <mesh
+                      key={`v-${i}`}
+                      position={[x, 0.03, 0]}
+                      rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+                    >
+                      <planeGeometry args={[STICK_LENGTH * stickRows, 0.15]} />
+                      <meshStandardMaterial color="#000" />
+                    </mesh>
+                  );
+                })}
+
+                {filteredRacks.map((rack: any) => (
+                  <Rack
+                    key={rack.id}
+                    id={rack.id}
+                    position={
+                      rack.id === selectedRackId && dragPreviewPosition
+                        ? dragPreviewPosition
+                        : rack.position
+                    }
+                    stock={rack.stock}
+                    bagsPerLevel={rack.bagsPerLevel}
+                    width={rack.width}
+                    depth={rack.depth}
+                    expiryDate={rack.expiryDate}
+                    isSelected={selectedRackId === rack.id}
+                    onSelect={(id) => setSelectedRackId(id)}
+                  />
+                ))}
+              </Canvas>
+            </View>
+          </PanGestureHandler>
+        </PinchGestureHandler>
       </Animated.View>
 
       {/* Drag Handle */}
@@ -939,22 +981,6 @@ export default function WarehouseScene() {
             <Text style={{ fontWeight: "bold" }}>
               {editMode ? "EDIT MODE ON" : "EDIT MODE OFF"}
             </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.zoomRow}>
-          <TouchableOpacity
-            style={styles.zoomBtn}
-            onPress={() => handleZoom(-1)}
-          >
-            <Text>➕</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.zoomBtn}
-            onPress={() => handleZoom(1)}
-          >
-            <Text>➖</Text>
           </TouchableOpacity>
         </View>
 
