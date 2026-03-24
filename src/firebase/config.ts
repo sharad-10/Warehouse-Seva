@@ -4,7 +4,7 @@ import * as firebaseAuth from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { Platform } from "react-native";
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyAPXJl6XKnZa-xMmMx09Y-C9VfpJHcivC8",
   authDomain: "warehouse-seva.firebaseapp.com",
   projectId: "warehouse-seva",

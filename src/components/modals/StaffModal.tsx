@@ -18,9 +18,14 @@ type Props = {
   members: WarehouseMember[];
   inviteValue: string;
   setInviteValue: (value: string) => void;
+  createUsernameValue: string;
+  setCreateUsernameValue: (value: string) => void;
+  createPasswordValue: string;
+  setCreatePasswordValue: (value: string) => void;
   selectedRole: WarehouseRole;
   setSelectedRole: (role: WarehouseRole) => void;
   onInvite: () => void;
+  onCreateStaff: () => void;
   onUpdateRole: (memberId: string, role: WarehouseRole) => void;
   onRemove: (memberId: string) => void;
   onClose: () => void;
@@ -34,9 +39,14 @@ export default function StaffModal({
   members,
   inviteValue,
   setInviteValue,
+  createUsernameValue,
+  setCreateUsernameValue,
+  createPasswordValue,
+  setCreatePasswordValue,
   selectedRole,
   setSelectedRole,
   onInvite,
+  onCreateStaff,
   onUpdateRole,
   onRemove,
   onClose,
@@ -79,6 +89,32 @@ export default function StaffModal({
           <TouchableOpacity style={styles.btn} onPress={onInvite}>
             <Text style={styles.btnText}>{t("staff.inviteButton")}</Text>
           </TouchableOpacity>
+
+          <View style={styles.createCard}>
+            <Text style={styles.createTitle}>{t("staff.createTitle")}</Text>
+            <Text style={styles.createHelper}>{t("staff.createHelper")}</Text>
+
+            <TextInput
+              style={styles.input}
+              value={createUsernameValue}
+              onChangeText={setCreateUsernameValue}
+              placeholder={t("staff.createUsername")}
+              autoCapitalize="none"
+            />
+
+            <TextInput
+              style={styles.input}
+              value={createPasswordValue}
+              onChangeText={setCreatePasswordValue}
+              placeholder={t("staff.createPassword")}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+
+            <TouchableOpacity style={styles.secondaryCreateBtn} onPress={onCreateStaff}>
+              <Text style={styles.btnText}>{t("staff.createButton")}</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
@@ -190,6 +226,29 @@ const styles = StyleSheet.create({
   btnText: {
     fontWeight: "700",
     color: "#2E2300",
+  },
+  createCard: {
+    backgroundColor: "#FFF9EC",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#F2E6B3",
+    marginBottom: 12,
+  },
+  createTitle: {
+    fontWeight: "700",
+    color: "#8B5E00",
+    marginBottom: 4,
+  },
+  createHelper: {
+    color: "#666",
+    marginBottom: 10,
+  },
+  secondaryCreateBtn: {
+    backgroundColor: "#F4B400",
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
   },
   list: {
     maxHeight: 320,

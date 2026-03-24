@@ -75,6 +75,8 @@ export default function WarehouseScene() {
     new Date().toISOString().split("T")[0],
   );
   const [inviteValue, setInviteValue] = React.useState("");
+  const [createStaffUsername, setCreateStaffUsername] = React.useState("");
+  const [createStaffPassword, setCreateStaffPassword] = React.useState("");
   const [inviteRole, setInviteRole] = React.useState<WarehouseRole>("edit");
   const gestureRef = React.useRef({
     startRotateX: 0,
@@ -121,6 +123,7 @@ export default function WarehouseScene() {
     members,
     error: staffError,
     inviteMember,
+    createManagedStaffMember,
     updateMemberRole,
     removeMember,
   } = useWarehouseStaff(currentWarehouse);
@@ -569,6 +572,22 @@ export default function WarehouseScene() {
     }
   };
 
+  const handleCreateStaff = async () => {
+    try {
+      await createManagedStaffMember(createStaffUsername, createStaffPassword, inviteRole);
+      const createdUsername = createStaffUsername.trim().toLowerCase();
+      setCreateStaffUsername("");
+      setCreateStaffPassword("");
+      setInviteRole("edit");
+      Alert.alert(
+        "Staff account created",
+        `Username: ${createdUsername}\nPassword: ${createStaffPassword}`,
+      );
+    } catch (error: any) {
+      Alert.alert("Create staff failed", error.message);
+    }
+  };
+
   const handleUpdateMemberRole = (memberId: string, nextRole: WarehouseRole) => {
     Alert.alert(
       "Change staff role?",
@@ -888,9 +907,14 @@ export default function WarehouseScene() {
         members={members}
         inviteValue={inviteValue}
         setInviteValue={setInviteValue}
+        createUsernameValue={createStaffUsername}
+        setCreateUsernameValue={setCreateStaffUsername}
+        createPasswordValue={createStaffPassword}
+        setCreatePasswordValue={setCreateStaffPassword}
         selectedRole={inviteRole}
         setSelectedRole={setInviteRole}
         onInvite={() => void handleInvite()}
+        onCreateStaff={() => void handleCreateStaff()}
         onUpdateRole={handleUpdateMemberRole}
         onRemove={handleRemoveMember}
         onClose={() => setStaffVisible(false)}
