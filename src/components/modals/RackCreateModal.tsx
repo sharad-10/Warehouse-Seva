@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { Stick } from "@/src/types/warehouse";
+import { useLanguage } from "@/src/i18n/LanguageContext";
 
 type Props = {
   visible: boolean;
@@ -21,6 +22,8 @@ type Props = {
   deleteLabel?: string;
   rackName: string;
   setRackName: (value: string) => void;
+  material: string;
+  setMaterial: (value: string) => void;
   bagCount: string;
   setBagCount: (value: string) => void;
   stackCount: string;
@@ -43,6 +46,8 @@ export default function RackCreateModal({
   deleteLabel = "Delete Rack",
   rackName,
   setRackName,
+  material,
+  setMaterial,
   bagCount,
   setBagCount,
   stackCount,
@@ -56,6 +61,7 @@ export default function RackCreateModal({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useLanguage();
   const [showDatePicker, setShowDatePicker] = React.useState(false);
   const [sliderWidth, setSliderWidth] = React.useState(0);
   const sliderRef = React.useRef<View | null>(null);
@@ -85,12 +91,12 @@ export default function RackCreateModal({
         <View style={styles.modal}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>
-            Selected stick: {stick?.name ?? "No stick selected"}
+            {t("rack.selectedStick")}: {stick?.name ?? t("rack.noStick")}
           </Text>
 
           <TextInput
             style={styles.input}
-            placeholder="Rack name"
+            placeholder={t("rack.name")}
             value={rackName}
             onChangeText={setRackName}
             placeholderTextColor="#999"
@@ -100,7 +106,17 @@ export default function RackCreateModal({
 
           <TextInput
             style={styles.input}
-            placeholder="Number of bags"
+            placeholder={t("rack.material")}
+            value={material}
+            onChangeText={setMaterial}
+            placeholderTextColor="#999"
+            returnKeyType="done"
+            onSubmitEditing={Keyboard.dismiss}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder={t("rack.bags")}
             keyboardType="numeric"
             value={bagCount}
             onChangeText={setBagCount}
@@ -111,7 +127,7 @@ export default function RackCreateModal({
 
           <TextInput
             style={styles.input}
-            placeholder="Number of stacks / levels"
+            placeholder={t("rack.stacks")}
             keyboardType="numeric"
             value={stackCount}
             onChangeText={setStackCount}
@@ -122,10 +138,10 @@ export default function RackCreateModal({
 
           <View style={styles.sliderCard}>
             <View style={styles.sliderHeader}>
-              <Text style={styles.sliderLabel}>Space in selected stick</Text>
+              <Text style={styles.sliderLabel}>{t("rack.spaceInStick")}</Text>
               <Text style={styles.sliderValue}>{numericValue}%</Text>
             </View>
-            <Text style={styles.sliderHint}>Available to allocate: {maxPercent}%</Text>
+            <Text style={styles.sliderHint}>{t("rack.availableToAllocate")}: {maxPercent}%</Text>
 
             <View
               ref={sliderRef}
@@ -156,7 +172,7 @@ export default function RackCreateModal({
           </View>
 
           <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
-            <Text style={styles.dateText}>Entry Date: {entryDate}</Text>
+            <Text style={styles.dateText}>{t("rack.entryDate")}: {entryDate}</Text>
           </TouchableOpacity>
 
           {showDatePicker ? (
@@ -194,7 +210,7 @@ export default function RackCreateModal({
           ) : null}
 
           <TouchableOpacity onPress={onClose}>
-            <Text style={styles.closeText}>Close</Text>
+            <Text style={styles.closeText}>{t("common.close")}</Text>
           </TouchableOpacity>
         </View>
       </Pressable>

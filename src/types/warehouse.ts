@@ -18,6 +18,7 @@ export type Rack = {
   warehouseId: string;
   stickId?: string;
   name: string;
+  material?: string;
   position: Position;
   width: number;
   depth: number;

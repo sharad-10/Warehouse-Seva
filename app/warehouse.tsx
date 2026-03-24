@@ -15,6 +15,7 @@ import { useWarehouseStaff } from "@/src/hooks/useWarehouseStaff";
 import { WarehouseRole } from "@/src/types/warehouse";
 import {
   getAvailableOccupancyPercent,
+  getLaidOutSticks,
   getRackFootprint,
   getRenderedRacksForSticks,
   getSceneMetrics,
@@ -34,9 +35,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useLanguage } from "@/src/i18n/LanguageContext";
 
 export default function WarehouseScene() {
   const router = useRouter();
+  const { language, setLanguage, t } = useLanguage();
 
   const [firebaseUser, setFirebaseUser] = React.useState<User | null>(null);
   const [authLoading, setAuthLoading] = React.useState(true);
@@ -64,6 +67,7 @@ export default function WarehouseScene() {
   const [profileName, setProfileName] = React.useState("");
   const [profilePhone, setProfilePhone] = React.useState("");
   const [rackNameDraft, setRackNameDraft] = React.useState("");
+  const [rackMaterialDraft, setRackMaterialDraft] = React.useState("");
   const [rackBagCountDraft, setRackBagCountDraft] = React.useState("");
   const [rackStackCountDraft, setRackStackCountDraft] = React.useState("");
   const [rackOccupancyDraft, setRackOccupancyDraft] = React.useState("50");
@@ -155,28 +159,36 @@ export default function WarehouseScene() {
   }, [editingRackId, racks, selectedStickId]);
 
   const stickSceneLayout = React.useMemo(
-    () => getStickSceneLayout(sticks, currentWarehouse?.stickWidth ?? 90, currentWarehouse?.stickLength ?? 120),
-    [currentWarehouse?.stickLength, currentWarehouse?.stickWidth, sticks],
+    () =>
+      getStickSceneLayout(
+        sticks,
+        currentWarehouse?.stickCols ?? 1,
+        currentWarehouse?.stickWidth ?? 90,
+        currentWarehouse?.stickLength ?? 120,
+      ),
+    [currentWarehouse?.stickCols, currentWarehouse?.stickLength, currentWarehouse?.stickWidth, sticks],
   );
   const renderedRacks = React.useMemo(
     () =>
       getRenderedRacksForSticks(
         filteredRacks,
         filteredSticks,
+        currentWarehouse?.stickCols ?? 1,
         currentWarehouse?.stickWidth ?? 90,
         currentWarehouse?.stickLength ?? 120,
       ),
-    [currentWarehouse?.stickLength, currentWarehouse?.stickWidth, filteredRacks, filteredSticks],
+    [currentWarehouse?.stickCols, currentWarehouse?.stickLength, currentWarehouse?.stickWidth, filteredRacks, filteredSticks],
   );
   const sceneMetrics = React.useMemo(
     () =>
       getSceneMetrics(
         filteredSticks,
         renderedRacks,
+        currentWarehouse?.stickCols ?? 1,
         currentWarehouse?.stickWidth ?? 90,
         currentWarehouse?.stickLength ?? 120,
       ),
-    [currentWarehouse?.stickLength, currentWarehouse?.stickWidth, filteredSticks, renderedRacks],
+    [currentWarehouse?.stickCols, currentWarehouse?.stickLength, currentWarehouse?.stickWidth, filteredSticks, renderedRacks],
   );
 
   React.useEffect(() => {
@@ -221,6 +233,14 @@ export default function WarehouseScene() {
     setPanX(0);
     setPanY(0);
   }, [currentWarehouse?.id, filteredRacks.length, filteredSticks.length, searchQuery]);
+
+  React.useEffect(() => {
+    if (!warehouseModalVisible) {
+      return;
+    }
+
+    setWarehouseNameDraft(currentWarehouse?.name ?? "");
+  }, [currentWarehouse?.name, warehouseModalVisible]);
 
   const handleCreateWarehouse = async () => {
     const name = warehouseNameDraft.trim();
@@ -358,6 +378,7 @@ export default function WarehouseScene() {
     setSelectedRackId(null);
     setSelectedStickId(stickId);
     setRackNameDraft("");
+    setRackMaterialDraft("");
     setRackBagCountDraft("");
     setRackStackCountDraft("");
     setRackOccupancyDraft(String(Math.min(50, Math.max(1, freePercent))));
@@ -380,6 +401,7 @@ export default function WarehouseScene() {
     setEditingRackId(rack.id);
     setSelectedStickId(rack.stickId ?? null);
     setRackNameDraft(rack.name ?? "");
+    setRackMaterialDraft(rack.material ?? "");
     setRackBagCountDraft(String(rack.stock ?? 0));
     setRackStackCountDraft(String(rack.stackCount ?? Math.max(1, Math.ceil(rack.stock / Math.max(1, rack.bagsPerLevel)))));
     setRackOccupancyDraft(String(rack.occupancyPercent ?? 1));
@@ -402,6 +424,11 @@ export default function WarehouseScene() {
       return;
     }
 
+    if (!rackMaterialDraft.trim()) {
+      Alert.alert("Material required", "Please enter the rack material.");
+      return;
+    }
+
     if (!Number.isFinite(stock) || stock <= 0) {
       Alert.alert("Invalid bags", "Enter a valid number of bags.");
       return;
@@ -419,8 +446,15 @@ export default function WarehouseScene() {
 
     const stickWidth = currentWarehouse.stickWidth;
     const stickLength = currentWarehouse.stickLength;
-    const centerX = stickSceneLayout.startX + (selectedStick.col - stickSceneLayout.minCol) * stickWidth;
-    const centerZ = stickSceneLayout.startZ + (selectedStick.row - stickSceneLayout.minRow) * stickLength;
+    const laidOutStick = getLaidOutSticks(sticks, currentWarehouse.stickCols).find(
+      (stick) => stick.id === selectedStick.id,
+    );
+    const centerX =
+      stickSceneLayout.startX +
+      ((laidOutStick?.layoutCol ?? 0) - stickSceneLayout.minCol) * stickWidth;
+    const centerZ =
+      stickSceneLayout.startZ +
+      ((laidOutStick?.layoutRow ?? 0) - stickSceneLayout.minRow) * stickLength;
     const footprint = getRackFootprint(occupancyPercent, stickWidth, stickLength);
     const rackPosition: [number, number, number] = [centerX, 1, centerZ];
 
@@ -428,6 +462,7 @@ export default function WarehouseScene() {
       await addRack(currentWarehouse, {
         stickId: selectedStick.id,
         name: rackNameDraft.trim(),
+        material: rackMaterialDraft.trim(),
         stock,
         stackCount,
         occupancyPercent,
@@ -455,6 +490,11 @@ export default function WarehouseScene() {
         return;
       }
 
+      if (!rackMaterialDraft.trim()) {
+        Alert.alert("Material required", "Please enter the rack material.");
+        return;
+      }
+
       if (!Number.isFinite(stock) || stock <= 0) {
         Alert.alert("Invalid bags", "Enter a valid number of bags.");
         return;
@@ -478,6 +518,7 @@ export default function WarehouseScene() {
         );
         await updateRack(editingRackId, {
           name: rackNameDraft.trim(),
+          material: rackMaterialDraft.trim(),
           stock,
           stackCount,
           occupancyPercent,
@@ -679,7 +720,10 @@ export default function WarehouseScene() {
   return (
     <View style={styles.container}>
       <HeaderBar
-        openQuickAdd={() => setWarehouseModalVisible(true)}
+        openQuickAdd={() => {
+          setWarehouseNameDraft(currentWarehouse?.name ?? "");
+          setWarehouseModalVisible(true);
+        }}
         openSettings={() => setSettingsVisible(true)}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -687,30 +731,28 @@ export default function WarehouseScene() {
 
       <View style={styles.topStrip}>
         <View style={styles.topStripCard}>
-          <Text style={styles.topStripLabel}>Active Warehouse</Text>
+          <Text style={styles.topStripLabel}>{t("warehouse.active")}</Text>
           <Text style={styles.topStripValue}>
-            {currentWarehouse?.name ?? "Create your first warehouse"}
+            {currentWarehouse?.name ?? t("warehouse.createFirst")}
           </Text>
         </View>
 
         <View style={styles.topStripCard}>
-          <Text style={styles.topStripLabel}>Access</Text>
+          <Text style={styles.topStripLabel}>{t("warehouse.access")}</Text>
           <Text style={styles.topStripValue}>{role.toUpperCase()}</Text>
         </View>
 
         <View style={styles.topStripCard}>
-          <Text style={styles.topStripLabel}>Visible Racks</Text>
+          <Text style={styles.topStripLabel}>{t("warehouse.visibleRacks")}</Text>
           <Text style={styles.topStripValue}>{filteredRacks.length}</Text>
         </View>
       </View>
 
       {screenError ? (
         <View style={styles.errorBanner}>
-          <Text style={styles.errorTitle}>Firebase permission issue</Text>
+          <Text style={styles.errorTitle}>{t("firebase.issueTitle")}</Text>
           <Text style={styles.errorText}>
-            The app connected, but Firestore blocked one or more reads. Update your
-            Firestore security rules for `warehouses`, `sticks`, `racks`, `warehouseMembers`,
-            `users`, and `usernames`.
+            {t("firebase.issueDesc")}
           </Text>
           <Text style={styles.errorCode}>{screenError}</Text>
         </View>
@@ -746,19 +788,36 @@ export default function WarehouseScene() {
               panY={panY}
               rotateX={rotateX}
               sceneMetrics={sceneMetrics}
+              onSelectRack={handleSelectRack}
             />
 
             <View style={styles.toolbar}>
+              <View style={styles.zoomRow}>
+                <TouchableOpacity
+                  style={styles.zoomBtn}
+                  onPress={() => setZoom((current) => Math.min(420, current + 40))}
+                >
+                  <Text style={styles.zoomBtnText}>+</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.zoomBtn}
+                  onPress={() => setZoom((current) => Math.max(-160, current - 40))}
+                >
+                  <Text style={styles.zoomBtnText}>-</Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity style={styles.toolbarReset} onPress={resetView}>
-                <Text style={styles.toolbarResetText}>Reset View</Text>
+                <Text style={styles.toolbarResetText}>{t("view.reset")}</Text>
               </TouchableOpacity>
             </View>
           </>
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No warehouse selected</Text>
+            <Text style={styles.emptyTitle}>{t("warehouse.noneSelected")}</Text>
             <Text style={styles.emptyText}>
-              Create your first warehouse to start placing racks and tracking stock.
+              {t("warehouse.noneSelectedDesc")}
             </Text>
           </View>
         )}
@@ -795,6 +854,8 @@ export default function WarehouseScene() {
         sticks={sticks}
         racks={racks}
         userRole={role}
+        language={language}
+        onChangeLanguage={(nextLanguage) => void setLanguage(nextLanguage)}
         onUpdateWarehouse={(data) => {
           if (!currentWarehouse) return;
           void updateWarehouse(currentWarehouse.id, data);
@@ -838,10 +899,13 @@ export default function WarehouseScene() {
       <RackCreateModal
         visible={rackModalVisible}
         stick={selectedStick}
-        title={editingRackId ? "Edit Rack" : "Add Rack"}
-        submitLabel={editingRackId ? "Update Rack" : "Save Rack"}
+        title={editingRackId ? t("rack.edit") : t("rack.add")}
+        submitLabel={editingRackId ? t("rack.update") : t("rack.save")}
+        deleteLabel={t("rack.delete")}
         rackName={rackNameDraft}
         setRackName={setRackNameDraft}
+        material={rackMaterialDraft}
+        setMaterial={setRackMaterialDraft}
         bagCount={rackBagCountDraft}
         setBagCount={setRackBagCountDraft}
         stackCount={rackStackCountDraft}
@@ -856,6 +920,7 @@ export default function WarehouseScene() {
           setRackModalVisible(false);
           setEditingRackId(null);
           setSelectedStickId(null);
+          setRackMaterialDraft("");
         }}
         onSubmit={() => void handleSaveRackForm()}
       />
@@ -941,6 +1006,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 8,
     gap: 8,
+  },
+  zoomRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  zoomBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#FFF4CC",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  zoomBtnText: {
+    fontSize: 26,
+    lineHeight: 26,
+    fontWeight: "700",
+    color: "#6B4C00",
   },
   toolbarReset: {
     backgroundColor: "#5E4300",

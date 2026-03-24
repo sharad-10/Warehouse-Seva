@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import * as THREE from "three";
 
 import { Rack } from "@/src/types/warehouse";
@@ -14,6 +14,7 @@ type Props = {
   panY: number;
   rotateX: number;
   sceneMetrics: SceneMetrics;
+  onSelectRack: (rackId: string) => void;
 };
 
 export default function RackLabelOverlay({
@@ -25,6 +26,7 @@ export default function RackLabelOverlay({
   panY,
   rotateX,
   sceneMetrics,
+  onSelectRack,
 }: Props) {
   const labels = React.useMemo(() => {
     if (width <= 0 || height <= 0) {
@@ -53,6 +55,7 @@ export default function RackLabelOverlay({
     );
     camera.lookAt(focusPoint);
     camera.updateProjectionMatrix();
+    camera.updateMatrixWorld(true);
 
     return racks.map((rack) => {
       const rackHeight =
@@ -62,11 +65,21 @@ export default function RackLabelOverlay({
 
       const x = (projected.x * 0.5 + 0.5) * width;
       const y = (-projected.y * 0.5 + 0.5) * height;
-      const visible = projected.z < 1 && x >= -60 && x <= width + 60 && y >= -30 && y <= height + 30;
+      const visible =
+        Number.isFinite(x) &&
+        Number.isFinite(y) &&
+        projected.z > -1.5 &&
+        projected.z < 1.5 &&
+        x >= -80 &&
+        x <= width + 80 &&
+        y >= -40 &&
+        y <= height + 40;
 
       return {
         id: rack.id,
-        name: rack.name,
+        name: rack.material?.trim()
+          ? `${rack.name}(${rack.material.trim()})`
+          : rack.name,
         x,
         y,
         visible,
@@ -75,11 +88,12 @@ export default function RackLabelOverlay({
   }, [height, panX, panY, racks, rotateX, sceneMetrics, width, zoom]);
 
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
       {labels.map((label) =>
         label.visible ? (
-          <View
+          <Pressable
             key={label.id}
+            onPress={() => onSelectRack(label.id)}
             style={[
               styles.labelWrap,
               {
@@ -91,7 +105,7 @@ export default function RackLabelOverlay({
             <Text numberOfLines={1} style={styles.labelText}>
               {label.name}
             </Text>
-          </View>
+          </Pressable>
         ) : null,
       )}
     </View>
@@ -101,6 +115,8 @@ export default function RackLabelOverlay({
 const styles = StyleSheet.create({
   labelWrap: {
     position: "absolute",
+    zIndex: 20,
+    elevation: 20,
     minWidth: 88,
     maxWidth: 110,
     paddingHorizontal: 8,

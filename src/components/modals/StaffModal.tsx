@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { WarehouseMember, WarehouseRole } from "@/src/types/warehouse";
+import { useLanguage } from "@/src/i18n/LanguageContext";
 
 type Props = {
   visible: boolean;
@@ -40,23 +41,24 @@ export default function StaffModal({
   onRemove,
   onClose,
 }: Props) {
+  const { t } = useLanguage();
   const helperLabel =
     members.length === 0
-      ? "Invite teammates by username or email."
-      : `Owner: ${ownerLabel}`;
+      ? t("staff.inviteHelper")
+      : `${t("staff.owner")}: ${ownerLabel}`;
 
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          <Text style={styles.title}>Staff Management</Text>
+          <Text style={styles.title}>{t("staff.title")}</Text>
           <Text style={styles.helperText}>{helperLabel}</Text>
 
           <TextInput
             style={styles.input}
             value={inviteValue}
             onChangeText={setInviteValue}
-            placeholder="Invite by username or email"
+            placeholder={t("staff.invitePlaceholder")}
             autoCapitalize="none"
           />
 
@@ -68,30 +70,30 @@ export default function StaffModal({
                 onPress={() => setSelectedRole(role)}
               >
                 <Text style={selectedRole === role ? styles.roleChipTextActive : undefined}>
-                  {role.toUpperCase()}
+                  {role === "edit" ? t("staff.edit") : t("staff.view")}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
           <TouchableOpacity style={styles.btn} onPress={onInvite}>
-            <Text style={styles.btnText}>Invite Staff Member</Text>
+            <Text style={styles.btnText}>{t("staff.inviteButton")}</Text>
           </TouchableOpacity>
 
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
-              <Text style={styles.legendTitle}>EDIT</Text>
-              <Text style={styles.legendText}>Can change racks and layout</Text>
+              <Text style={styles.legendTitle}>{t("staff.edit")}</Text>
+              <Text style={styles.legendText}>{t("staff.editDesc")}</Text>
             </View>
             <View style={styles.legendItem}>
-              <Text style={styles.legendTitle}>VIEW</Text>
-              <Text style={styles.legendText}>Can only browse warehouse data</Text>
+              <Text style={styles.legendTitle}>{t("staff.view")}</Text>
+              <Text style={styles.legendText}>{t("staff.viewDesc")}</Text>
             </View>
           </View>
 
           <ScrollView style={styles.list}>
             {members.length === 0 ? (
-              <Text style={styles.emptyText}>No staff members added yet.</Text>
+              <Text style={styles.emptyText}>{t("staff.empty")}</Text>
             ) : (
               members.map((member) => (
                 <View key={member.id} style={styles.row}>
@@ -114,7 +116,7 @@ export default function StaffModal({
                     ))}
 
                     <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove(member.id)}>
-                      <Text style={styles.removeText}>Remove</Text>
+                      <Text style={styles.removeText}>{t("staff.remove")}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -123,7 +125,7 @@ export default function StaffModal({
           </ScrollView>
 
           <TouchableOpacity onPress={onClose}>
-            <Text style={styles.closeText}>Close</Text>
+            <Text style={styles.closeText}>{t("common.close")}</Text>
           </TouchableOpacity>
         </View>
       </View>

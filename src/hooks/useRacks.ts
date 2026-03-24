@@ -63,6 +63,7 @@ export function useRacks(warehouseId: string | null) {
       warehouseId: warehouse.id,
       stickId: rackInput?.stickId ?? "",
       name: rackInput?.name ?? `Rack ${rackCount}`,
+      material: rackInput?.material ?? "",
       position: rackInput?.position ?? [0, 1, 0],
       stock,
       width: rackInput?.width ?? 12,

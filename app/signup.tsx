@@ -11,9 +11,11 @@ import {
   View,
 } from "react-native";
 import { auth, db } from "../src/firebase/config";
+import { useLanguage } from "@/src/i18n/LanguageContext";
 
 export default function SignupScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [email, setEmail] = React.useState("");
   const [username, setUsername] = React.useState("");
@@ -90,10 +92,10 @@ export default function SignupScreen() {
   };
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
+      <Text style={styles.title}>{t("signup.title")}</Text>
 
       <TextInput
-        placeholder="Enter email"
+        placeholder={t("signup.email")}
         placeholderTextColor="#999"
         style={styles.input}
         value={email}
@@ -101,7 +103,7 @@ export default function SignupScreen() {
       />
 
       <TextInput
-        placeholder="Enter username"
+        placeholder={t("signup.username")}
         placeholderTextColor="#999"
         style={styles.input}
         value={username}
@@ -109,7 +111,7 @@ export default function SignupScreen() {
       />
 
       <TextInput
-        placeholder="Enter phone number"
+        placeholder={t("signup.phone")}
         placeholderTextColor="#999"
         style={styles.input}
         keyboardType="number-pad"
@@ -118,7 +120,7 @@ export default function SignupScreen() {
       />
 
       <TextInput
-        placeholder="Enter password"
+        placeholder={t("signup.password")}
         placeholderTextColor="#999"
         style={styles.input}
         secureTextEntry
@@ -127,7 +129,7 @@ export default function SignupScreen() {
       />
 
       <TextInput
-        placeholder="Confirm password"
+        placeholder={t("signup.confirmPassword")}
         placeholderTextColor="#999"
         style={styles.input}
         secureTextEntry
@@ -136,14 +138,14 @@ export default function SignupScreen() {
       />
 
       <TouchableOpacity style={styles.button} onPress={handleSignup}>
-        <Text style={styles.btnText}>Sign Up</Text>
+        <Text style={styles.btnText}>{t("signup.button")}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.link}
         onPress={() => router.replace("/login")}
       >
-        <Text>Already have account? Login</Text>
+        <Text>{t("signup.haveAccount")}</Text>
       </TouchableOpacity>
     </View>
   );

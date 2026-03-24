@@ -56,12 +56,12 @@ export default function WarehouseCanvas({
   stickLength,
 }: Props) {
   const renderedRacks = React.useMemo(
-    () => getRenderedRacksForSticks(racks, sticks, stickWidth, stickLength),
-    [racks, stickLength, stickWidth, sticks],
+    () => getRenderedRacksForSticks(racks, sticks, stickCols, stickWidth, stickLength),
+    [racks, stickCols, stickLength, stickWidth, sticks],
   );
   const sceneMetrics = React.useMemo(() => {
-    return getSceneMetrics(sticks, renderedRacks, stickWidth, stickLength);
-  }, [renderedRacks, stickLength, stickWidth, sticks]);
+    return getSceneMetrics(sticks, renderedRacks, stickCols, stickWidth, stickLength);
+  }, [renderedRacks, stickCols, stickLength, stickWidth, sticks]);
 
   return (
     <Canvas

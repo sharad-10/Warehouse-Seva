@@ -11,9 +11,11 @@ import {
   View,
 } from "react-native";
 import { auth, db } from "../src/firebase/config";
+import { useLanguage } from "@/src/i18n/LanguageContext";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
 
@@ -83,10 +85,10 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Warehouse Seva</Text>
+      <Text style={styles.title}>{t("login.title")}</Text>
 
       <TextInput
-        placeholder="Enter email or username"
+        placeholder={t("login.identifier")}
         placeholderTextColor="#999"
         style={styles.input}
         value={email}
@@ -95,7 +97,7 @@ export default function LoginScreen() {
       />
 
       <TextInput
-        placeholder="Enter your password"
+        placeholder={t("login.password")}
         placeholderTextColor="#999"
         style={styles.input}
         secureTextEntry
@@ -104,14 +106,14 @@ export default function LoginScreen() {
       />
 
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.btnText}>Login</Text>
+        <Text style={styles.btnText}>{t("login.button")}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.link}
         onPress={() => router.replace("/signup")}
       >
-        <Text>Create new account</Text>
+        <Text>{t("login.createAccount")}</Text>
       </TouchableOpacity>
     </View>
   );

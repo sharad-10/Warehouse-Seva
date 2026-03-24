@@ -1,5 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useLanguage } from "@/src/i18n/LanguageContext";
 
 type Props = {
   openQuickAdd: () => void;
@@ -18,6 +19,8 @@ export default function HeaderBar({
   searchQuery,
   setSearchQuery,
 }: Props) {
+  const { t } = useLanguage();
+
   return (
     <View style={styles.headerWrap}>
       <View style={styles.header}>
@@ -25,7 +28,7 @@ export default function HeaderBar({
           <Text style={styles.iconText}>+</Text>
         </TouchableOpacity>
 
-        <Text style={styles.appTitle}>Warehouse Seva</Text>
+        <Text style={styles.appTitle}>{t("app.title")}</Text>
 
         <TouchableOpacity
           onPress={openSettings}
@@ -39,7 +42,7 @@ export default function HeaderBar({
           style={styles.searchInput}
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search stick by name"
+          placeholder={t("header.searchStick")}
           placeholderTextColor="#907B45"
         />
       </View>

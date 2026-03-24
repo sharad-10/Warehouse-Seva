@@ -11,6 +11,7 @@ import {
 } from "react-native";
 
 import { db } from "@/src/firebase/config";
+import { useLanguage } from "@/src/i18n/LanguageContext";
 
 type Props = {
   visible: boolean;
@@ -33,6 +34,8 @@ export default function ProfileModal({
   onLogout,
   onClose,
 }: Props) {
+  const { t } = useLanguage();
+
   const handleSave = async () => {
     if (!firebaseUser) return;
 
@@ -50,11 +53,11 @@ export default function ProfileModal({
         { merge: true },
       );
 
-      alert("Profile updated");
+      alert(t("profile.updated"));
       onClose();
     } catch (error) {
       console.log(error);
-      alert("Failed to update profile");
+      alert(t("profile.failed"));
     }
   };
 
@@ -62,35 +65,35 @@ export default function ProfileModal({
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          <Text style={styles.title}>My Profile</Text>
+          <Text style={styles.title}>{t("profile.title")}</Text>
 
-          <Text style={styles.caption}>{firebaseUser?.email ?? "No email available"}</Text>
+          <Text style={styles.caption}>{firebaseUser?.email ?? t("profile.noEmail")}</Text>
 
           <TextInput
             style={styles.input}
             value={nameInput}
             onChangeText={setNameInput}
-            placeholder="Display Name"
+            placeholder={t("profile.displayName")}
           />
 
           <TextInput
             style={styles.input}
             value={phoneInput}
             onChangeText={setPhoneInput}
-            placeholder="Phone Number"
+            placeholder={t("profile.phone")}
             keyboardType="phone-pad"
           />
 
           <TouchableOpacity style={styles.btn} onPress={handleSave}>
-            <Text style={styles.btnText}>Save Changes</Text>
+            <Text style={styles.btnText}>{t("profile.save")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={styles.logoutText}>{t("profile.logout")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={onClose}>
-            <Text style={styles.closeText}>Close</Text>
+            <Text style={styles.closeText}>{t("common.close")}</Text>
           </TouchableOpacity>
         </View>
       </View>

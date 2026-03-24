@@ -1,5 +1,6 @@
 import React from "react";
 import { Stick } from "@/src/types/warehouse";
+import { getLaidOutSticks } from "@/src/utils/warehouseLayout";
 
 type Props = {
   sticks: Stick[];
@@ -24,6 +25,11 @@ export default function WarehouseFloor({
   stickWidth,
   stickLength,
 }: Props) {
+  const laidOutSticks = React.useMemo(
+    () => getLaidOutSticks(sticks, stickCols),
+    [stickCols, sticks],
+  );
+
   const sceneLayout = React.useMemo(() => {
     if (sticks.length === 0) {
       return {
@@ -38,8 +44,8 @@ export default function WarehouseFloor({
       };
     }
 
-    const rows = sticks.map((stick) => stick.row);
-    const cols = sticks.map((stick) => stick.col);
+    const rows = laidOutSticks.map((stick) => stick.layoutRow);
+    const cols = laidOutSticks.map((stick) => stick.layoutCol);
     const minRow = Math.min(...rows);
     const maxRow = Math.max(...rows);
     const minCol = Math.min(...cols);
@@ -59,7 +65,7 @@ export default function WarehouseFloor({
       centerX: 0,
       centerZ: 0,
     };
-  }, [stickLength, stickWidth, sticks]);
+  }, [laidOutSticks, stickLength, stickWidth, sticks.length]);
 
   const gridLines = React.useMemo(() => {
     if (sticks.length === 0) {
@@ -98,9 +104,9 @@ export default function WarehouseFloor({
     const startX = -(sceneLayout.totalWidth / 2) + stickWidth / 2;
     const startZ = -(sceneLayout.totalLength / 2) + stickLength / 2;
 
-    sticks.forEach((stick) => {
-      const relativeCol = stick.col - sceneLayout.minCol;
-      const relativeRow = stick.row - sceneLayout.minRow;
+    laidOutSticks.forEach((stick) => {
+      const relativeCol = stick.layoutCol - sceneLayout.minCol;
+      const relativeRow = stick.layoutRow - sceneLayout.minRow;
       const x = startX + relativeCol * stickWidth;
       const z = startZ + relativeRow * stickLength;
       const isAlt = (relativeRow + relativeCol) % 2 === 0;
@@ -169,7 +175,7 @@ export default function WarehouseFloor({
     });
 
     return tiles;
-  }, [onSelectStick, sceneLayout, selectedStickId, stickLength, stickWidth, sticks]);
+  }, [laidOutSticks, onSelectStick, sceneLayout, selectedStickId, stickLength, stickWidth]);
 
   return (
     <>

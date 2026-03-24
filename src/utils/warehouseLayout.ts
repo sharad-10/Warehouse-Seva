@@ -18,8 +18,39 @@ export type SceneMetrics = {
   centerZ: number;
 };
 
+export type LaidOutStick = Stick & {
+  layoutRow: number;
+  layoutCol: number;
+};
+
+export function getLaidOutSticks(sticks: Stick[], stickCols: number) {
+  const columns = Math.max(1, stickCols);
+  const sorted = [...sticks].sort((a, b) => {
+    if ((a.row ?? 0) !== (b.row ?? 0)) {
+      return (a.row ?? 0) - (b.row ?? 0);
+    }
+
+    if ((a.col ?? 0) !== (b.col ?? 0)) {
+      return (a.col ?? 0) - (b.col ?? 0);
+    }
+
+    if ((a.createdAt ?? "") !== (b.createdAt ?? "")) {
+      return (a.createdAt ?? "").localeCompare(b.createdAt ?? "");
+    }
+
+    return a.name.localeCompare(b.name);
+  });
+
+  return sorted.map((stick, index) => ({
+    ...stick,
+    layoutRow: Math.floor(index / columns),
+    layoutCol: index % columns,
+  }));
+}
+
 export function getStickSceneLayout(
   sticks: Stick[],
+  stickCols: number,
   stickWidth: number,
   stickLength: number,
 ): StickSceneLayout {
@@ -36,8 +67,9 @@ export function getStickSceneLayout(
     };
   }
 
-  const rows = sticks.map((stick) => stick.row);
-  const cols = sticks.map((stick) => stick.col);
+  const laidOutSticks = getLaidOutSticks(sticks, stickCols);
+  const rows = laidOutSticks.map((stick) => stick.layoutRow);
+  const cols = laidOutSticks.map((stick) => stick.layoutCol);
   const minRow = Math.min(...rows);
   const maxRow = Math.max(...rows);
   const minCol = Math.min(...cols);
@@ -59,13 +91,19 @@ export function getStickSceneLayout(
 
 export function getStickCenter(
   stick: Stick,
+  sticks: Stick[],
+  stickCols: number,
   layout: StickSceneLayout,
   stickWidth: number,
   stickLength: number,
 ) {
+  const laidOutStick = getLaidOutSticks(sticks, stickCols).find((item) => item.id === stick.id);
+  const layoutCol = laidOutStick?.layoutCol ?? 0;
+  const layoutRow = laidOutStick?.layoutRow ?? 0;
+
   return {
-    x: layout.startX + (stick.col - layout.minCol) * stickWidth,
-    z: layout.startZ + (stick.row - layout.minRow) * stickLength,
+    x: layout.startX + (layoutCol - layout.minCol) * stickWidth,
+    z: layout.startZ + (layoutRow - layout.minRow) * stickLength,
   };
 }
 
@@ -104,10 +142,11 @@ export function getRackFootprint(
 export function getRenderedRacksForSticks(
   racks: Rack[],
   sticks: Stick[],
+  stickCols: number,
   stickWidth: number,
   stickLength: number,
 ) {
-  const layout = getStickSceneLayout(sticks, stickWidth, stickLength);
+  const layout = getStickSceneLayout(sticks, stickCols, stickWidth, stickLength);
   const stickMap = new Map(sticks.map((stick) => [stick.id, stick]));
   const rendered = new Map<string, Rack>();
 
@@ -129,7 +168,7 @@ export function getRenderedRacksForSticks(
       return;
     }
 
-    const center = getStickCenter(stick, layout, stickWidth, stickLength);
+    const center = getStickCenter(stick, sticks, stickCols, layout, stickWidth, stickLength);
     const sorted = [...group].sort((a, b) => {
       const aDate = a.entryDate ?? "";
       const bDate = b.entryDate ?? "";
@@ -177,10 +216,11 @@ export function getRenderedRacksForSticks(
 export function getSceneMetrics(
   sticks: Stick[],
   racks: Rack[],
+  stickCols: number,
   stickWidth: number,
   stickLength: number,
 ): SceneMetrics {
-  const stickLayout = getStickSceneLayout(sticks, stickWidth, stickLength);
+  const stickLayout = getStickSceneLayout(sticks, stickCols, stickWidth, stickLength);
   const bounds = {
     minX: Number.POSITIVE_INFINITY,
     maxX: Number.NEGATIVE_INFINITY,

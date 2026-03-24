@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { Stick, Warehouse, WarehouseRole } from "@/src/types/warehouse";
+import { useLanguage } from "@/src/i18n/LanguageContext";
 
 type Props = {
   visible: boolean;
@@ -50,16 +51,15 @@ export default function WarehouseModal({
   onClose,
   userRole,
 }: Props) {
+  const { t } = useLanguage();
   const hasWarehouses = warehouses.length > 0;
 
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          <Text style={styles.title}>Manage Warehouses</Text>
-          <Text style={styles.subtitle}>
-            Pick an active warehouse, rename the selected one, or create a new space.
-          </Text>
+          <Text style={styles.title}>{t("warehouse.manage")}</Text>
+          <Text style={styles.subtitle}>{t("warehouse.manageSubtitle")}</Text>
 
           {hasWarehouses ? (
             <ScrollView style={styles.list}>
@@ -75,7 +75,7 @@ export default function WarehouseModal({
                     <View style={{ flex: 1 }}>
                       <Text style={styles.itemTitle}>{warehouse.name}</Text>
                       <Text style={styles.itemMeta}>
-                        {isSelected ? "Currently active" : "Tap to switch"}
+                        {isSelected ? t("common.currentlyActive") : t("common.tapToSwitch")}
                       </Text>
                     </View>
 
@@ -85,13 +85,13 @@ export default function WarehouseModal({
                           style={styles.smallBtn}
                           onPress={() => onRename(warehouse.id)}
                         >
-                          <Text>Rename</Text>
+                          <Text>{t("common.rename")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[styles.smallBtn, styles.dangerBtn]}
                           onPress={() => onDelete(warehouse.id)}
                         >
-                          <Text style={styles.dangerText}>Delete</Text>
+                          <Text style={styles.dangerText}>{t("common.delete")}</Text>
                         </TouchableOpacity>
                       </View>
                     ) : null}
@@ -101,37 +101,50 @@ export default function WarehouseModal({
             </ScrollView>
           ) : (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No warehouses yet</Text>
+              <Text style={styles.emptyTitle}>{t("warehouse.empty")}</Text>
               <Text style={styles.emptyText}>
-                Create your first warehouse to unlock the rack planner and inventory tools.
+                {t("warehouse.emptyDesc")}
               </Text>
             </View>
           )}
 
           <TextInput
-            placeholder="New or updated warehouse name"
+            placeholder={t("warehouse.nameInput")}
             value={draftName}
             onChangeText={setDraftName}
             style={styles.input}
             placeholderTextColor="#999"
           />
 
-          <TouchableOpacity style={styles.btn} onPress={onCreate}>
-            <Text style={styles.btnText}>Create Warehouse</Text>
-          </TouchableOpacity>
+          <View style={styles.actionRowBlock}>
+            <TouchableOpacity style={styles.btn} onPress={onCreate}>
+              <Text style={styles.btnText}>{t("warehouse.create")}</Text>
+            </TouchableOpacity>
+
+            {currentWarehouseId && userRole === "admin" ? (
+              <TouchableOpacity
+                style={[styles.btn, styles.secondaryBtn]}
+                onPress={() => onRename(currentWarehouseId)}
+              >
+                <Text style={[styles.btnText, styles.secondaryBtnText]}>
+                  {t("warehouse.renameSelected")}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
 
           <View style={styles.divider} />
 
-          <Text style={styles.title}>Add Stick</Text>
+          <Text style={styles.title}>{t("warehouse.addStick")}</Text>
           <Text style={styles.subtitle}>
-            Add a named stick inside {currentWarehouseName ?? "the selected warehouse"}.
+            {t("warehouse.addStickSubtitle")} {currentWarehouseName ?? t("settings.noWarehouse")}.
           </Text>
 
           {currentWarehouseId ? (
             <>
               <ScrollView style={styles.stickList}>
                 {sticks.length === 0 ? (
-                  <Text style={styles.emptyText}>No sticks added yet.</Text>
+                  <Text style={styles.emptyText}>{t("warehouse.stickEmpty")}</Text>
                 ) : (
                   sticks.map((stick) => (
                     <View key={stick.id} style={styles.stickItem}>
@@ -141,7 +154,7 @@ export default function WarehouseModal({
                           style={[styles.smallBtn, styles.dangerBtn]}
                           onPress={() => onDeleteStick(stick.id)}
                         >
-                          <Text style={styles.dangerText}>Delete</Text>
+                          <Text style={styles.dangerText}>{t("common.delete")}</Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -150,7 +163,7 @@ export default function WarehouseModal({
               </ScrollView>
 
               <TextInput
-                placeholder="Stick name"
+                placeholder={t("warehouse.stickName")}
                 value={stickName}
                 onChangeText={setStickName}
                 style={styles.input}
@@ -158,20 +171,20 @@ export default function WarehouseModal({
               />
 
               <TouchableOpacity style={styles.btn} onPress={onCreateStick}>
-                <Text style={styles.btnText}>Add Stick</Text>
+                <Text style={styles.btnText}>{t("warehouse.addStick")}</Text>
               </TouchableOpacity>
             </>
           ) : (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Select a warehouse first</Text>
+              <Text style={styles.emptyTitle}>{t("warehouse.selectFirst")}</Text>
               <Text style={styles.emptyText}>
-                Choose or create a warehouse above before adding sticks.
+                {t("warehouse.selectFirstDesc")}
               </Text>
             </View>
           )}
 
           <TouchableOpacity onPress={onClose}>
-            <Text style={styles.closeText}>Close</Text>
+            <Text style={styles.closeText}>{t("common.close")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -300,9 +313,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
+  actionRowBlock: {
+    marginBottom: 4,
+  },
+  secondaryBtn: {
+    backgroundColor: "#FFF4CC",
+    borderWidth: 1,
+    borderColor: "#E9D5A1",
+  },
   btnText: {
     fontWeight: "700",
     color: "#2E2300",
+  },
+  secondaryBtnText: {
+    color: "#6B4C00",
   },
   closeText: {
     textAlign: "center",
