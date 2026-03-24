@@ -1,6 +1,8 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import React from "react";
 import {
+  Alert,
+  Keyboard,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,13 +11,15 @@ import {
   View,
 } from "react-native";
 
+import { Rack, WarehouseRole } from "@/src/types/warehouse";
+
 type Props = {
-  racks: any[];
+  racks: Rack[];
   selectedRackId: string | null;
-  updateRack: (id: string, data: any) => void;
+  updateRack: (id: string, data: Partial<Rack>) => void;
   deleteRack: (id: string) => void;
   editMode: boolean;
-  userRole: "admin" | "edit" | "view";
+  userRole: WarehouseRole;
 };
 
 export default function RackInfoPanel({
@@ -32,18 +36,19 @@ export default function RackInfoPanel({
   const [stockInput, setStockInput] = React.useState("");
 
   const rack = racks.find((r) => r.id === selectedRackId);
+  const canEdit = userRole === "admin" || userRole === "edit";
 
   React.useEffect(() => {
     if (rack) {
       setStockInput(rack.stock?.toString() || "0");
     }
-  }, [rack?.stock]);
+  }, [rack]);
 
   if (!selectedRackId || !rack) return null;
 
   const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
-  const levels = Math.ceil(rack.stock / rack.bagsPerLevel);
+  const stacks = Math.ceil(rack.stock / rack.bagsPerLevel);
   const width = rack.width ?? 1.5;
   const depth = rack.depth ?? 1;
 
@@ -53,15 +58,9 @@ export default function RackInfoPanel({
   const expiryDate = rack.expiryDate ? new Date(rack.expiryDate) : null;
 
   let daysToExpiry: number | null = null;
-  let isNearExpiry = false;
-  let isExpired = false;
-
   if (expiryDate) {
     const diff = expiryDate.getTime() - today.getTime();
     daysToExpiry = Math.ceil(diff / (1000 * 60 * 60 * 24));
-
-    if (daysToExpiry < 0) isExpired = true;
-    else if (daysToExpiry <= 7) isNearExpiry = true;
   }
 
   return (
@@ -80,12 +79,12 @@ export default function RackInfoPanel({
           <TextInput
             style={[
               styles.input,
-              { backgroundColor: userRole === "view" ? "#f2f2f2" : "#FFFFFF" },
+              { backgroundColor: canEdit ? "#FFFFFF" : "#f2f2f2" },
             ]}
             value={rack.name}
-            editable={userRole !== "view"}
+            editable={canEdit}
             onChangeText={(text) => {
-              if (userRole === "view") return;
+              if (!canEdit) return;
               updateRack(rack.id, { name: text.trimStart() });
             }}
             placeholder="Enter rack name"
@@ -96,6 +95,8 @@ export default function RackInfoPanel({
       {!collapsed && (
         <ScrollView
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingBottom: 20 }}
         >
           {editMode ? (
@@ -108,14 +109,18 @@ export default function RackInfoPanel({
 
               <View style={styles.row}>
                 <TouchableOpacity
-                  style={styles.smallBtn}
-                  onPress={() => updateRack(rack.id, { width: width - 0.5 })}
+                  style={[styles.smallBtn, !canEdit && styles.disabledAction]}
+                  disabled={!canEdit}
+                  onPress={() =>
+                    updateRack(rack.id, { width: Math.max(0.5, width - 0.5) })
+                  }
                 >
                   <Text>- Width</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.smallBtn}
+                  style={[styles.smallBtn, !canEdit && styles.disabledAction]}
+                  disabled={!canEdit}
                   onPress={() => updateRack(rack.id, { width: width + 0.5 })}
                 >
                   <Text>+ Width</Text>
@@ -124,14 +129,18 @@ export default function RackInfoPanel({
 
               <View style={styles.row}>
                 <TouchableOpacity
-                  style={styles.smallBtn}
-                  onPress={() => updateRack(rack.id, { depth: depth - 0.5 })}
+                  style={[styles.smallBtn, !canEdit && styles.disabledAction]}
+                  disabled={!canEdit}
+                  onPress={() =>
+                    updateRack(rack.id, { depth: Math.max(0.5, depth - 0.5) })
+                  }
                 >
                   <Text>- Depth</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.smallBtn}
+                  style={[styles.smallBtn, !canEdit && styles.disabledAction]}
+                  disabled={!canEdit}
                   onPress={() => updateRack(rack.id, { depth: depth + 0.5 })}
                 >
                   <Text>+ Depth</Text>
@@ -148,11 +157,11 @@ export default function RackInfoPanel({
                 <TouchableOpacity
                   style={[
                     styles.dateInput,
-                    { opacity: userRole === "view" ? 0.5 : 1 },
+                    { opacity: canEdit ? 1 : 0.5 },
                   ]}
                   onPress={() => {
-                    if (userRole === "view") {
-                      alert("View user cannot edit dates");
+                    if (!canEdit) {
+                      Alert.alert("Read only", "Your role cannot edit dates.");
                       return;
                     }
                     setShowEntryPicker(true);
@@ -185,9 +194,15 @@ export default function RackInfoPanel({
                 <TouchableOpacity
                   style={[
                     styles.dateInput,
-                    { opacity: userRole === "view" ? 0.5 : 1 },
+                    { opacity: canEdit ? 1 : 0.5 },
                   ]}
-                  onPress={() => setShowExpiryPicker(true)}
+                  onPress={() => {
+                    if (!canEdit) {
+                      Alert.alert("Read only", "Your role cannot edit dates.");
+                      return;
+                    }
+                    setShowExpiryPicker(true);
+                  }}
                 >
                   <Text>{rack.expiryDate || "Select Date"}</Text>
                 </TouchableOpacity>
@@ -204,8 +219,8 @@ export default function RackInfoPanel({
                       setShowExpiryPicker(false);
 
                       // If user is view → block update
-                      if (userRole === "view") {
-                        alert("View user cannot edit dates");
+                      if (!canEdit) {
+                        Alert.alert("Read only", "Your role cannot edit dates.");
                         return;
                       }
 
@@ -224,13 +239,20 @@ export default function RackInfoPanel({
 
               <View style={styles.divider} />
 
-              {/* STOCK */}
-              <Text style={styles.sectionTitle}>Stock</Text>
+              <Text style={styles.sectionTitle}>Stock And Stacks</Text>
 
               <Text>Current Stock: {rack.stock}</Text>
               <Text>Total Value: ₹ {totalValue.toFixed(2)}</Text>
-              <Text>Bags / Level: {rack.bagsPerLevel}</Text>
-              <Text>Levels Used: {levels}</Text>
+              <Text>Bags / Stack: {rack.bagsPerLevel}</Text>
+              <Text>Stacks Used: {stacks}</Text>
+              <Text>
+                Expiry:{" "}
+                {daysToExpiry === null
+                  ? "Not set"
+                  : daysToExpiry < 0
+                    ? "Expired"
+                    : `${daysToExpiry} day(s) left`}
+              </Text>
 
               <View style={styles.field}>
                 <Text style={styles.label}>Set Stock Quantity</Text>
@@ -240,24 +262,31 @@ export default function RackInfoPanel({
                   value={stockInput}
                   onChangeText={setStockInput}
                   placeholder="Enter quantity"
+                  returnKeyType="done"
+                  blurOnSubmit
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
               </View>
 
               <TouchableOpacity
                 style={[
                   styles.primaryBtn,
-                  { opacity: userRole === "view" ? 0.5 : 1 },
+                  { opacity: canEdit ? 1 : 0.5 },
                 ]}
-                disabled={userRole === "view"}
+                disabled={!canEdit}
                 onPress={() => {
-                  if (userRole === "view") {
-                    alert("View user cannot update stock");
+                  Keyboard.dismiss();
+
+                  if (!canEdit) {
+                    Alert.alert("Read only", "Your role cannot update stock.");
                     return;
                   }
 
                   const newValue = Number(stockInput);
                   if (!isNaN(newValue) && newValue >= 0) {
                     updateRack(rack.id, { stock: newValue });
+                  } else {
+                    Alert.alert("Invalid stock", "Please enter a valid non-negative number.");
                   }
                 }}
               >
@@ -268,32 +297,33 @@ export default function RackInfoPanel({
                 <TouchableOpacity
                   style={[
                     styles.smallBtn,
-                    { opacity: userRole === "view" ? 0.5 : 1 },
+                    { opacity: canEdit ? 1 : 0.5 },
                   ]}
-                  disabled={userRole === "view"}
+                  disabled={!canEdit}
                   onPress={() => {
-                    if (userRole === "view") return;
+                    if (!canEdit) return;
                     updateRack(rack.id, {
                       bagsPerLevel: Math.max(rack.bagsPerLevel - 1, 1),
                     });
                   }}
                 >
-                  <Text>- Bags / Level</Text>
+                  <Text>- Bags / Stack</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[
                     styles.smallBtn,
-                    { opacity: userRole === "view" ? 0.5 : 1 },
+                    { opacity: canEdit ? 1 : 0.5 },
                   ]}
+                  disabled={!canEdit}
                   onPress={() => {
-                    if (userRole === "view") return;
+                    if (!canEdit) return;
                     updateRack(rack.id, {
                       bagsPerLevel: rack.bagsPerLevel + 1,
                     });
                   }}
                 >
-                  <Text>+ Bags / Level</Text>
+                  <Text>+ Bags / Stack</Text>
                 </TouchableOpacity>
               </View>
 
@@ -380,6 +410,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF4CC",
     padding: 10,
     borderRadius: 10,
+  },
+  disabledAction: {
+    opacity: 0.5,
   },
   deleteBtn: {
     backgroundColor: "#D84315",

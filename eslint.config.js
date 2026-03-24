@@ -7,4 +7,10 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    files: ['src/components/Rack.tsx', 'src/components/Stick.tsx', 'src/components/warehouse/**/*.tsx'],
+    rules: {
+      'react/no-unknown-property': 'off',
+    },
+  },
 ]);

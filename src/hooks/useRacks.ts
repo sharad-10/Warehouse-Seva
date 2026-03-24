@@ -1,77 +1,93 @@
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    onSnapshot,
-    updateDoc,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { auth, db } from "../firebase/config";
+
+import { db } from "../firebase/config";
+import { Rack, Warehouse } from "../types/warehouse";
 
 export function useRacks(warehouseId: string | null) {
-  const [racks, setRacks] = useState<any[]>([]);
-  const user = auth.currentUser;
+  const [racks, setRacks] = useState<Rack[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user || !warehouseId) {
+    if (!warehouseId) {
       setRacks([]);
+      setError(null);
+      setLoading(false);
       return;
     }
 
+    setLoading(true);
+
     const unsubscribe = onSnapshot(
-      collection(db, "users", user.uid, "warehouses", warehouseId, "racks"),
+      query(collection(db, "racks"), where("warehouseId", "==", warehouseId)),
       (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
+        const data = snapshot.docs.map((rackDoc) => ({
+          id: rackDoc.id,
+          ...(rackDoc.data() as Omit<Rack, "id">),
         }));
+
+        data.sort((a, b) => a.name.localeCompare(b.name));
         setRacks(data);
+        setError(null);
+        setLoading(false);
+      },
+      (snapshotError) => {
+        setRacks([]);
+        setError(snapshotError.message);
+        setLoading(false);
       },
     );
 
     return unsubscribe;
-  }, [user, warehouseId]);
+  }, [warehouseId]);
 
-  const addRack = async () => {
-    if (!user || !warehouseId) return;
+  const addRack = async (
+    warehouse: Warehouse,
+    rackInput?: Partial<Rack> & { name: string; stock: number; stackCount: number; occupancyPercent: number; stickId: string },
+  ) => {
+    const rackCount = racks.length + 1;
+    const stock = rackInput?.stock ?? 0;
+    const stackCount = rackInput?.stackCount ?? 1;
 
-    await addDoc(
-      collection(db, "users", user.uid, "warehouses", warehouseId, "racks"),
-      {
-        name: "Rack",
-        position: [0, 1, 0],
-        stock: 0,
-        width: 1.5,
-        depth: 1,
-        bagsPerLevel: 5,
-        entryDate: "",
-        expiryDate: "",
-        rate: 0,
-        createdAt: new Date(),
-      },
-    );
+    await addDoc(collection(db, "racks"), {
+      warehouseId: warehouse.id,
+      stickId: rackInput?.stickId ?? "",
+      name: rackInput?.name ?? `Rack ${rackCount}`,
+      position: rackInput?.position ?? [0, 1, 0],
+      stock,
+      width: rackInput?.width ?? 12,
+      depth: rackInput?.depth ?? 8,
+      stackCount,
+      bagsPerLevel: Math.max(1, Math.ceil(stock / stackCount)),
+      occupancyPercent: rackInput?.occupancyPercent ?? 25,
+      entryDate: rackInput?.entryDate ?? new Date().toISOString().split("T")[0],
+      expiryDate: "",
+      rate: 0,
+    });
   };
 
-  const updateRack = async (id: string, data: any) => {
-    if (!user || !warehouseId) return;
-
-    await updateDoc(
-      doc(db, "users", user.uid, "warehouses", warehouseId, "racks", id),
-      data,
-    );
+  const updateRack = async (id: string, data: Partial<Rack>) => {
+    await updateDoc(doc(db, "racks", id), data);
   };
 
   const deleteRack = async (id: string) => {
-    if (!user || !warehouseId) return;
-
-    await deleteDoc(
-      doc(db, "users", user.uid, "warehouses", warehouseId, "racks", id),
-    );
+    await deleteDoc(doc(db, "racks", id));
   };
 
   return {
     racks,
+    loading,
+    error,
     addRack,
     updateRack,
     deleteRack,

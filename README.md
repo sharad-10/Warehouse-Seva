@@ -1,50 +1,99 @@
-# Welcome to your Expo app 👋
+# Warehouse Seva
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Warehouse Seva is an Expo + React Native app for managing warehouse space visually. It combines Firebase authentication, warehouse/staff management, and a 3D rack layout so users can track stock, expiry dates, and floor usage from one screen.
 
-## Get started
+## What the app does
 
-1. Install dependencies
+- Sign up and log in with email or username
+- Create and switch between warehouses
+- Add, rename, move, resize, and delete racks
+- Track stock quantity, bags per level, entry date, expiry date, and rack value
+- Invite staff members with `edit` or `view` access
+- See warehouse-level stats such as rack count, stock, levels used, and floor usage
 
-   ```bash
-   npm install
-   ```
+## Tech stack
 
-2. Start the app
+- Expo Router
+- React Native
+- TypeScript
+- Firebase Authentication
+- Firestore
+- React Three Fiber / Three.js
 
-   ```bash
-   npx expo start
-   ```
+## Project structure
 
-In the output, you'll find options to open the app in a
+- [app](/Users/sharadsinghania/Desktop/WarehouseSeva/Warehouse-Seva/app): route entrypoints and screens
+- [src/components](/Users/sharadsinghania/Desktop/WarehouseSeva/Warehouse-Seva/src/components): app UI, panels, modals, and 3D warehouse pieces
+- [src/hooks](/Users/sharadsinghania/Desktop/WarehouseSeva/Warehouse-Seva/src/hooks): Firebase-backed hooks for warehouses, racks, roles, and staff
+- [src/firebase](/Users/sharadsinghania/Desktop/WarehouseSeva/Warehouse-Seva/src/firebase): Firebase configuration
+- [src/types](/Users/sharadsinghania/Desktop/WarehouseSeva/Warehouse-Seva/src/types): shared app types
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Firestore collections
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+The current app expects these collections:
 
-## Get a fresh project
+- `users`
+  Stores profile information like `email`, `username`, `phone`, and `displayName`.
+- `usernames`
+  Maps a username to a Firebase user id and email so users can log in with usernames.
+- `warehouses`
+  Stores warehouse metadata such as `name`, `ownerId`, and layout settings.
+- `racks`
+  Stores rack documents linked by `warehouseId`.
+- `warehouseMembers`
+  Stores per-warehouse staff access with `edit` or `view` roles.
 
-When you're ready, run:
+## Getting started
+
+1. Install dependencies:
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Start the Expo app:
 
-## Learn more
+```bash
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+3. Open the project in:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- iOS simulator
+- Android emulator
+- Expo Go
+- web preview
 
-## Join the community
+## Firebase setup
 
-Join our community of developers creating universal apps.
+Update the Firebase config in [src/firebase/config.ts](/Users/sharadsinghania/Desktop/WarehouseSeva/Warehouse-Seva/src/firebase/config.ts) if you want to point the app at another Firebase project.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+At minimum, enable:
+
+- Firebase Authentication with Email/Password
+- Cloud Firestore
+
+## Useful commands
+
+```bash
+npm run start
+npm run android
+npm run ios
+npm run web
+npm run lint
+npx tsc --noEmit
+```
+
+## Current product flow
+
+1. A user signs up and gets a `users` document plus a `usernames` mapping.
+2. The user creates a warehouse and becomes its owner.
+3. The warehouse owner adds racks and configures the layout.
+4. The owner can invite staff to the warehouse with `edit` or `view` access.
+5. Staff members can log in and access warehouses shared with them.
+
+## Notes
+
+- The app is optimized around one active warehouse at a time.
+- Rack placement happens inside the 3D floor view.
+- The UI currently uses Firestore directly from the client, so Firebase security rules should be configured carefully before production use.

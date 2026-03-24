@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import React from "react";
 import {
@@ -21,6 +21,18 @@ export default function SignupScreen() {
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
 
+  const showSignupError = (error: any) => {
+    if (error?.code === "permission-denied" || error?.message?.includes("permission-denied")) {
+      Alert.alert(
+        "Firebase Rules Blocked Signup",
+        "Your Firestore rules are blocking the username check or profile creation. Update Firestore rules for usernames and users, then try again.",
+      );
+      return;
+    }
+
+    Alert.alert("Signup Failed", error.message);
+  };
+
   const handleSignup = async () => {
     if (!email || !username || !phone || !password || !confirmPassword) {
       Alert.alert("Error", "Please fill all fields");
@@ -33,8 +45,11 @@ export default function SignupScreen() {
     }
 
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedUsername = username.trim().toLowerCase();
+
       // 1️⃣ Check if username already exists
-      const usernameRef = doc(db, "usernames", username.toLowerCase());
+      const usernameRef = doc(db, "usernames", normalizedUsername);
       const usernameSnap = await getDoc(usernameRef);
 
       if (usernameSnap.exists()) {
@@ -45,29 +60,32 @@ export default function SignupScreen() {
       // 2️⃣ Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        email,
+        normalizedEmail,
         password,
       );
 
       const user = userCredential.user;
 
+      await updateProfile(user, {
+        displayName: normalizedUsername,
+      });
+
       // 3️⃣ Save user data
       await setDoc(doc(db, "users", user.uid), {
-        email,
-        phone,
-        createdAt: new Date(),
-        currentRole: "admin", // 👈 First login role
+        email: normalizedEmail,
+        username: normalizedUsername,
+        phone: phone.trim(),
+        createdAt: new Date().toISOString(),
       });
 
       // 4️⃣ Create username → email mapping
       await setDoc(usernameRef, {
         uid: user.uid,
-        email,
-        role: "admin", // 👈 FIRST USER = ADMIN
+        email: normalizedEmail,
       });
       router.replace("/");
     } catch (error: any) {
-      Alert.alert("Signup Failed", error.message);
+      showSignupError(error);
     }
   };
   return (

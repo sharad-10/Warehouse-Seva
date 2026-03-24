@@ -6,6 +6,7 @@ type RackProps = {
   position: [number, number, number];
   stock: number;
   bagsPerLevel: number;
+  stackCount?: number;
   width: number;
   depth: number;
   expiryDate?: string;
@@ -18,6 +19,7 @@ export default function Rack({
   position,
   stock,
   bagsPerLevel,
+  stackCount,
   width,
   depth,
   expiryDate,
@@ -29,8 +31,8 @@ export default function Rack({
   /* =========================
      📦 Dynamic Height
   ========================= */
-  const levels = Math.ceil(stock / bagsPerLevel);
-  const height = 1 + levels * 0.8;
+  const stacks = Math.max(1, stackCount ?? Math.ceil(stock / bagsPerLevel));
+  const height = 8 + stacks * 4;
 
   /* =========================
      ⚠ Expiry Logic

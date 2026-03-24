@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from "firebase/firestore";
 import React from "react";
 import {
   Alert,
@@ -17,6 +17,18 @@ export default function LoginScreen() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
 
+  const showAuthError = (error: any) => {
+    if (error?.code === "permission-denied" || error?.message?.includes("permission-denied")) {
+      Alert.alert(
+        "Firebase Rules Blocked Login",
+        "Your Firestore rules are blocking access to the usernames collection. Allow reads on usernames for login by username, or log in with email until rules are updated.",
+      );
+      return;
+    }
+
+    Alert.alert("Login Failed", error.message);
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter username/email and password");
@@ -25,49 +37,47 @@ export default function LoginScreen() {
 
     try {
       let loginEmail = email.trim().toLowerCase();
+      const usernameInput = loginEmail;
 
       // If input does NOT contain @ → treat as username
       if (!loginEmail.includes("@")) {
         const usernameSnap = await getDoc(doc(db, "usernames", loginEmail));
 
-        if (!usernameSnap.exists()) {
-          Alert.alert("Error", "Username not found");
-          return;
-        }
+        if (usernameSnap.exists()) {
+          loginEmail = usernameSnap.data().email;
+        } else {
+          const usersSnapshot = await getDocs(
+            query(collection(db, "users"), where("username", "==", loginEmail)),
+          );
 
-        loginEmail = usernameSnap.data().email;
+          const firstUser = usersSnapshot.docs[0];
+          if (!firstUser) {
+            Alert.alert("Error", "Username not found");
+            return;
+          }
+
+          loginEmail = firstUser.data().email;
+
+          try {
+            await setDoc(
+              doc(db, "usernames", usernameInput),
+              {
+                uid: firstUser.id,
+                email: loginEmail,
+              },
+              { merge: true },
+            );
+          } catch {
+            // Ignore mapping repair failures so username login still works.
+          }
+        }
       }
 
       await signInWithEmailAndPassword(auth, loginEmail, password);
 
-      const inputValue = email.trim().toLowerCase();
-
-      // If login was via username
-      if (!inputValue.includes("@")) {
-        const usernameSnap = await getDoc(doc(db, "usernames", inputValue));
-
-        if (usernameSnap.exists()) {
-          const role = usernameSnap.data().role;
-
-          // Save currentRole inside user document
-          await setDoc(
-            doc(db, "users", auth.currentUser!.uid),
-            { currentRole: role },
-            { merge: true },
-          );
-        }
-      } else {
-        // If login via email → treat as admin
-        await setDoc(
-          doc(db, "users", auth.currentUser!.uid),
-          { currentRole: "admin" },
-          { merge: true },
-        );
-      }
-
       router.replace("/");
     } catch (error: any) {
-      Alert.alert("Login Failed", error.message);
+      showAuthError(error);
     }
   };
 
