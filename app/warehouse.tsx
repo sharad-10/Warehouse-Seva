@@ -22,6 +22,7 @@ import {
   getStickSceneLayout,
 } from "@/src/utils/warehouseLayout";
 import { useRouter } from "expo-router";
+import { File, Paths } from "expo-file-system";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { deleteDoc, doc, getDoc, getDocs, query, where, collection } from "firebase/firestore";
 import React from "react";
@@ -30,12 +31,14 @@ import {
   Alert,
   LayoutChangeEvent,
   PanResponder,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useLanguage } from "@/src/i18n/LanguageContext";
+import { buildWarehouseCsv } from "@/src/utils/exportWarehouseCsv";
 
 export default function WarehouseScene() {
   const router = useRouter();
@@ -630,6 +633,32 @@ export default function WarehouseScene() {
     router.replace("/login");
   };
 
+  const handleExportWarehouse = async () => {
+    if (!currentWarehouse) {
+      Alert.alert("No warehouse selected", "Please select a warehouse first.");
+      return;
+    }
+
+    try {
+      const csv = buildWarehouseCsv(currentWarehouse, sticks, racks);
+      const safeWarehouseName = currentWarehouse.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "warehouse";
+      const file = new File(Paths.cache, `${safeWarehouseName}-export.csv`);
+      file.create({ overwrite: true, intermediates: true });
+      file.write(csv);
+
+      await Share.share({
+        url: file.uri,
+        message: `Warehouse export saved at:\n${file.uri}`,
+      });
+    } catch (error: any) {
+      Alert.alert("Export failed", error.message ?? "Could not export warehouse data.");
+    }
+  };
+
   const resetView = () => {
     setZoom(0);
     setPanX(0);
@@ -887,6 +916,7 @@ export default function WarehouseScene() {
           setSettingsVisible(false);
           setStaffVisible(true);
         }}
+        onExportWarehouse={() => void handleExportWarehouse()}
         onClose={() => setSettingsVisible(false)}
       />
 

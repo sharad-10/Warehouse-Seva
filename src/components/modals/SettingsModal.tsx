@@ -23,6 +23,7 @@ type Props = {
   onUpdateWarehouse: (data: Partial<Warehouse>) => void;
   onOpenProfile: () => void;
   onOpenStaff: () => void;
+  onExportWarehouse: () => void;
   onClose: () => void;
 };
 
@@ -37,6 +38,7 @@ export default function SettingsModal({
   onUpdateWarehouse,
   onOpenProfile,
   onOpenStaff,
+  onExportWarehouse,
   onClose,
 }: Props) {
   const { t } = useLanguage();
@@ -141,6 +143,12 @@ export default function SettingsModal({
 
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>{t("settings.account")}</Text>
+              {warehouse ? (
+                <TouchableOpacity style={styles.secondaryBtn} onPress={onExportWarehouse}>
+                  <Text style={styles.secondaryText}>{t("settings.exportExcel")}</Text>
+                </TouchableOpacity>
+              ) : null}
+
               <TouchableOpacity style={styles.primaryBtn} onPress={onOpenProfile}>
                 <Text style={styles.primaryText}>{t("settings.profile")}</Text>
               </TouchableOpacity>
@@ -259,21 +267,24 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   primaryBtn: {
-    backgroundColor: "#F4B400",
-    borderRadius: 12,
+    backgroundColor: "#C98B00",
     paddingVertical: 12,
+    borderRadius: 12,
     alignItems: "center",
     marginBottom: 10,
   },
   primaryText: {
-    color: "#2E2300",
+    color: "#FFF8E3",
     fontWeight: "700",
   },
   secondaryBtn: {
     backgroundColor: "#FFF4CC",
-    borderRadius: 12,
     paddingVertical: 12,
+    borderRadius: 12,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E9D5A1",
+    marginBottom: 10,
   },
   secondaryText: {
     color: "#6B4C00",
@@ -281,7 +292,8 @@ const styles = StyleSheet.create({
   },
   closeText: {
     textAlign: "center",
-    marginTop: 8,
-    color: "#666",
+    color: "#7A5200",
+    fontWeight: "700",
+    marginTop: 4,
   },
 });
