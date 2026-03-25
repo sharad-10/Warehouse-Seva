@@ -1,6 +1,15 @@
 export type Position = [number, number, number];
 
 export type WarehouseRole = "admin" | "edit" | "view";
+export type RackAlertType = "medicine_reminder";
+
+export type RackAlert = {
+  id: string;
+  type: RackAlertType;
+  offsetDays: number;
+  nextTriggerDate?: string;
+  createdAt?: string;
+};
 
 export type Warehouse = {
   id: string;
@@ -29,6 +38,7 @@ export type Rack = {
   entryDate?: string;
   expiryDate?: string;
   rate?: number;
+  alerts?: RackAlert[];
 };
 
 export type WarehouseMember = {

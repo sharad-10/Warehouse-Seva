@@ -26,6 +26,9 @@ export const buildWarehouseCsv = (
     "Occupancy (%)",
     "Rack Area (sq ft)",
     "Entry Date",
+    "Alert Type",
+    "Alert After Days",
+    "Next Trigger Date",
   ];
 
   const rows = sticks
@@ -52,10 +55,15 @@ export const buildWarehouseCsv = (
           "",
           "",
           "",
+          "",
+          "",
+          "",
         ]];
       }
 
-      return stickRacks.map((rack) => [
+      return stickRacks.map((rack) => {
+        const firstAlert = rack.alerts?.[0];
+        return [
         warehouse.name,
         stick.name,
         stick.row,
@@ -68,7 +76,11 @@ export const buildWarehouseCsv = (
         rack.occupancyPercent ?? "",
         ((rack.width ?? 0) * (rack.depth ?? 0)).toFixed(2),
         rack.entryDate ?? "",
-      ]);
+        firstAlert?.type === "medicine_reminder" ? "Medicine Reminder" : "",
+        firstAlert?.offsetDays ?? "",
+        firstAlert?.nextTriggerDate ?? "",
+      ];
+      });
     });
 
   return [header, ...rows]

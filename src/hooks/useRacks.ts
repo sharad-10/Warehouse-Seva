@@ -34,6 +34,7 @@ export function useRacks(warehouseId: string | null) {
         const data = snapshot.docs.map((rackDoc) => ({
           id: rackDoc.id,
           ...(rackDoc.data() as Omit<Rack, "id">),
+          alerts: (rackDoc.data().alerts as Rack["alerts"]) ?? [],
         }));
 
         data.sort((a, b) => a.name.localeCompare(b.name));
@@ -74,6 +75,7 @@ export function useRacks(warehouseId: string | null) {
       entryDate: rackInput?.entryDate ?? new Date().toISOString().split("T")[0],
       expiryDate: "",
       rate: 0,
+      alerts: rackInput?.alerts ?? [],
     });
   };
 

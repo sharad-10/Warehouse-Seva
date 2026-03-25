@@ -12,7 +12,7 @@ import { useSticks } from "@/src/hooks/useSticks";
 import { useUserRole } from "@/src/hooks/useUserRole";
 import { useWarehouses } from "@/src/hooks/useWarehouses";
 import { useWarehouseStaff } from "@/src/hooks/useWarehouseStaff";
-import { WarehouseRole } from "@/src/types/warehouse";
+import { RackAlert, WarehouseRole } from "@/src/types/warehouse";
 import {
   getAvailableOccupancyPercent,
   getLaidOutSticks,
@@ -21,6 +21,7 @@ import {
   getSceneMetrics,
   getStickSceneLayout,
 } from "@/src/utils/warehouseLayout";
+import { formatRackAlertDate, getNextRackAlertDate, getRackAlertPreviews } from "@/src/utils/rackAlerts";
 import { useRouter } from "expo-router";
 import { File, Paths } from "expo-file-system";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
@@ -77,6 +78,8 @@ export default function WarehouseScene() {
   const [rackEntryDateDraft, setRackEntryDateDraft] = React.useState(
     new Date().toISOString().split("T")[0],
   );
+  const [medicineAlertEnabled, setMedicineAlertEnabled] = React.useState(false);
+  const [medicineAlertDays, setMedicineAlertDays] = React.useState("10");
   const [inviteValue, setInviteValue] = React.useState("");
   const [createStaffUsername, setCreateStaffUsername] = React.useState("");
   const [createStaffPassword, setCreateStaffPassword] = React.useState("");
@@ -196,6 +199,36 @@ export default function WarehouseScene() {
       ),
     [currentWarehouse?.stickCols, currentWarehouse?.stickLength, currentWarehouse?.stickWidth, filteredSticks, renderedRacks],
   );
+  const rackAlertPreviews = React.useMemo(
+    () => getRackAlertPreviews(racks, sticks),
+    [racks, sticks],
+  );
+  const visibleAlertPreviews = React.useMemo(
+    () => rackAlertPreviews.slice(0, 3),
+    [rackAlertPreviews],
+  );
+  const medicineAlertNextTriggerDate = React.useMemo(() => {
+    if (!medicineAlertEnabled) {
+      return "";
+    }
+
+    const offsetDays = Number(medicineAlertDays);
+    if (!Number.isFinite(offsetDays) || offsetDays <= 0) {
+      return "";
+    }
+
+    const nextDate = getNextRackAlertDate(rackEntryDateDraft, {
+      id: "medicine-reminder-preview",
+      type: "medicine_reminder",
+      offsetDays,
+    });
+
+    return formatRackAlertDate(nextDate);
+  }, [
+    medicineAlertDays,
+    medicineAlertEnabled,
+    rackEntryDateDraft,
+  ]);
 
   React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -389,6 +422,8 @@ export default function WarehouseScene() {
     setRackStackCountDraft("");
     setRackOccupancyDraft(String(Math.min(50, Math.max(1, freePercent))));
     setRackEntryDateDraft(new Date().toISOString().split("T")[0]);
+    setMedicineAlertEnabled(false);
+    setMedicineAlertDays("10");
     setRackModalVisible(true);
   };
 
@@ -412,8 +447,36 @@ export default function WarehouseScene() {
     setRackStackCountDraft(String(rack.stackCount ?? Math.max(1, Math.ceil(rack.stock / Math.max(1, rack.bagsPerLevel)))));
     setRackOccupancyDraft(String(rack.occupancyPercent ?? 1));
     setRackEntryDateDraft(rack.entryDate ?? new Date().toISOString().split("T")[0]);
+    const medicineAlert = rack.alerts?.find((alert) => alert.type === "medicine_reminder");
+    setMedicineAlertEnabled(Boolean(medicineAlert));
+    setMedicineAlertDays(String(medicineAlert?.offsetDays ?? 10));
     setRackModalVisible(true);
   }, [racks]);
+
+  const buildRackAlerts = (): RackAlert[] => {
+    if (!medicineAlertEnabled) {
+      return [];
+    }
+
+    const offsetDays = Number(medicineAlertDays);
+    if (!Number.isFinite(offsetDays) || offsetDays <= 0) {
+      throw new Error("Enter a valid medicine reminder day count.");
+    }
+
+    const nextTriggerDate = formatRackAlertDate(getNextRackAlertDate(rackEntryDateDraft, {
+      id: "medicine-reminder",
+      type: "medicine_reminder",
+      offsetDays,
+    }));
+
+    return [{
+      id: "medicine-reminder",
+      type: "medicine_reminder",
+      offsetDays,
+      nextTriggerDate,
+      createdAt: new Date().toISOString(),
+    }];
+  };
 
   const handleCreateRackForStick = async () => {
     if (!currentWarehouse || !selectedStick) {
@@ -424,6 +487,7 @@ export default function WarehouseScene() {
     const stock = Number(rackBagCountDraft);
     const stackCount = Number(rackStackCountDraft);
     const occupancyPercent = Number(rackOccupancyDraft);
+    let alerts: RackAlert[] = [];
 
     if (!rackNameDraft.trim()) {
       Alert.alert("Rack name required", "Please enter a rack name.");
@@ -450,6 +514,13 @@ export default function WarehouseScene() {
       return;
     }
 
+    try {
+      alerts = buildRackAlerts();
+    } catch (error: any) {
+      Alert.alert("Invalid alert", error.message);
+      return;
+    }
+
     const stickWidth = currentWarehouse.stickWidth;
     const stickLength = currentWarehouse.stickLength;
     const laidOutStick = getLaidOutSticks(sticks, currentWarehouse.stickCols).find(
@@ -472,6 +543,7 @@ export default function WarehouseScene() {
         stock,
         stackCount,
         occupancyPercent,
+        alerts,
         entryDate: rackEntryDateDraft,
         width: footprint.width,
         depth: footprint.depth,
@@ -490,6 +562,7 @@ export default function WarehouseScene() {
       const stock = Number(rackBagCountDraft);
       const stackCount = Number(rackStackCountDraft);
       const occupancyPercent = Number(rackOccupancyDraft);
+      let alerts: RackAlert[] = [];
 
       if (!rackNameDraft.trim()) {
         Alert.alert("Rack name required", "Please enter a rack name.");
@@ -517,6 +590,13 @@ export default function WarehouseScene() {
       }
 
       try {
+        alerts = buildRackAlerts();
+      } catch (error: any) {
+        Alert.alert("Invalid alert", error.message);
+        return;
+      }
+
+      try {
         const footprint = getRackFootprint(
           occupancyPercent,
           currentWarehouse?.stickWidth ?? 90,
@@ -528,6 +608,7 @@ export default function WarehouseScene() {
           stock,
           stackCount,
           occupancyPercent,
+          alerts,
           bagsPerLevel: Math.max(1, Math.ceil(stock / stackCount)),
           entryDate: rackEntryDateDraft,
           width: footprint.width,
@@ -796,6 +877,23 @@ export default function WarehouseScene() {
         </View>
       </View>
 
+      {visibleAlertPreviews.length > 0 ? (
+        <View style={styles.alertBanner}>
+          <Text style={styles.alertBannerTitle}>{t("warehouse.medicineAlerts")}</Text>
+          {visibleAlertPreviews.map((alert) => (
+            <View key={`${alert.rackId}-${alert.nextTriggerDate}`} style={styles.alertRow}>
+              <Text style={styles.alertRowTitle}>
+                {alert.rackName}
+                {alert.material ? ` (${alert.material})` : ""} - {alert.stickName}
+              </Text>
+              <Text style={styles.alertRowText}>
+                {alert.isDue ? t("warehouse.alertDue") : t("warehouse.alertUpcoming")}: {alert.nextTriggerDate}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       {screenError ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorTitle}>{t("firebase.issueTitle")}</Text>
@@ -969,6 +1067,11 @@ export default function WarehouseScene() {
         maxOccupancyPercent={Math.max(1, availableOccupancy)}
         entryDate={rackEntryDateDraft}
         setEntryDate={setRackEntryDateDraft}
+        medicineAlertEnabled={medicineAlertEnabled}
+        setMedicineAlertEnabled={setMedicineAlertEnabled}
+        medicineAlertDays={medicineAlertDays}
+        setMedicineAlertDays={setMedicineAlertDays}
+        medicineAlertNextTriggerDate={medicineAlertNextTriggerDate}
         onDelete={editingRackId ? () => handleDeleteRack(editingRackId) : undefined}
         onClose={() => {
           setRackModalVisible(false);
@@ -1006,6 +1109,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: "#FFF3CF",
+  },
+  alertBanner: {
+    backgroundColor: "#FFF7E0",
+    borderWidth: 1,
+    borderColor: "#E9D5A1",
+    borderRadius: 16,
+    marginHorizontal: 14,
+    marginTop: 10,
+    marginBottom: 8,
+    padding: 12,
+    gap: 8,
+  },
+  alertBannerTitle: {
+    color: "#7A5200",
+    fontWeight: "700",
+  },
+  alertRow: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#F1E2B4",
+  },
+  alertRowTitle: {
+    color: "#5B3D00",
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  alertRowText: {
+    color: "#6D654E",
   },
   topStripCard: {
     flex: 1,
