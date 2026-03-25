@@ -84,3 +84,19 @@ export const formatRackAlertDate = (date: Date | null) => {
 
   return formatDate(date);
 };
+
+export const getUpcomingRackAlertDates = (
+  entryDate: string | undefined,
+  alert: RackAlert,
+  count = 12,
+  now = startOfToday(),
+) => {
+  const firstDate = getNextRackAlertDate(entryDate, alert, now);
+  if (!firstDate) {
+    return [];
+  }
+
+  const intervalDays = Math.max(1, alert.offsetDays);
+
+  return Array.from({ length: count }, (_, index) => addDays(firstDate, intervalDays * index));
+};

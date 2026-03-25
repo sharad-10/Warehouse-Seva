@@ -8,6 +8,7 @@ import WarehouseCanvas from "@/src/components/warehouse/WarehouseCanvas";
 import RackLabelOverlay from "@/src/components/warehouse/RackLabelOverlay";
 import { auth, db } from "@/src/firebase/config";
 import { useRacks } from "@/src/hooks/useRacks";
+import { useRackAlertNotifications } from "@/src/hooks/useRackAlertNotifications";
 import { useSticks } from "@/src/hooks/useSticks";
 import { useUserRole } from "@/src/hooks/useUserRole";
 import { useWarehouses } from "@/src/hooks/useWarehouses";
@@ -133,6 +134,13 @@ export default function WarehouseScene() {
     updateMemberRole,
     removeMember,
   } = useWarehouseStaff(currentWarehouse);
+
+  useRackAlertNotifications(
+    firebaseUser?.uid ?? null,
+    currentWarehouse?.name ?? null,
+    racks,
+    sticks,
+  );
 
   const filteredSticks = React.useMemo(() => {
     const queryText = searchQuery.trim().toLowerCase();
