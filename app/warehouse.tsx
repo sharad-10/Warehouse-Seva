@@ -203,10 +203,6 @@ export default function WarehouseScene() {
     () => getRackAlertPreviews(racks, sticks),
     [racks, sticks],
   );
-  const visibleAlertPreviews = React.useMemo(
-    () => rackAlertPreviews.slice(0, 3),
-    [rackAlertPreviews],
-  );
   const medicineAlertNextTriggerDate = React.useMemo(() => {
     if (!medicineAlertEnabled) {
       return "";
@@ -877,23 +873,6 @@ export default function WarehouseScene() {
         </View>
       </View>
 
-      {visibleAlertPreviews.length > 0 ? (
-        <View style={styles.alertBanner}>
-          <Text style={styles.alertBannerTitle}>{t("warehouse.medicineAlerts")}</Text>
-          {visibleAlertPreviews.map((alert) => (
-            <View key={`${alert.rackId}-${alert.nextTriggerDate}`} style={styles.alertRow}>
-              <Text style={styles.alertRowTitle}>
-                {alert.rackName}
-                {alert.material ? ` (${alert.material})` : ""} - {alert.stickName}
-              </Text>
-              <Text style={styles.alertRowText}>
-                {alert.isDue ? t("warehouse.alertDue") : t("warehouse.alertUpcoming")}: {alert.nextTriggerDate}
-              </Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-
       {screenError ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorTitle}>{t("firebase.issueTitle")}</Text>
@@ -999,6 +978,7 @@ export default function WarehouseScene() {
         warehouse={currentWarehouse}
         sticks={sticks}
         racks={racks}
+        alerts={rackAlertPreviews}
         userRole={role}
         language={language}
         onChangeLanguage={(nextLanguage) => void setLanguage(nextLanguage)}
@@ -1109,36 +1089,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: "#FFF3CF",
-  },
-  alertBanner: {
-    backgroundColor: "#FFF7E0",
-    borderWidth: 1,
-    borderColor: "#E9D5A1",
-    borderRadius: 16,
-    marginHorizontal: 14,
-    marginTop: 10,
-    marginBottom: 8,
-    padding: 12,
-    gap: 8,
-  },
-  alertBannerTitle: {
-    color: "#7A5200",
-    fontWeight: "700",
-  },
-  alertRow: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#F1E2B4",
-  },
-  alertRowTitle: {
-    color: "#5B3D00",
-    fontWeight: "700",
-    marginBottom: 2,
-  },
-  alertRowText: {
-    color: "#6D654E",
   },
   topStripCard: {
     flex: 1,
