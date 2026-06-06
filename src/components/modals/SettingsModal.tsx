@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,375 +9,354 @@ import {
   View,
 } from "react-native";
 
-import { useLanguage } from "@/src/i18n/LanguageContext";
-import { AppLanguage } from "@/src/i18n/translations";
-import { Rack, Stick, Warehouse, WarehouseRole } from "@/src/types/warehouse";
-import { RackAlertPreview } from "@/src/utils/rackAlerts";
+import { Card, Space, SpaceRole } from "@/src/types/index";
+import { AlertPreview } from "@/src/utils/cardAlerts";
 
 type Props = {
   visible: boolean;
-  warehouse: Warehouse | null;
-  sticks: Stick[];
-  racks: Rack[];
-  alerts: RackAlertPreview[];
-  userRole: WarehouseRole;
-  language: AppLanguage;
-  onChangeLanguage: (language: AppLanguage) => void;
-  onUpdateWarehouse: (data: Partial<Warehouse>) => void;
+  space: Space | null;
+  cards: Card[];
+  alerts: AlertPreview[];
+  userRole: SpaceRole;
   onOpenProfile: () => void;
   onOpenStaff: () => void;
-  onExportWarehouse: () => void;
   onClose: () => void;
 };
 
-type SectionCardProps = {
-  title: string;
-  expanded: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-};
-
-function SectionCard({ title, expanded, onToggle, children }: SectionCardProps) {
+function StatRow({ label, value }: { label: string; value: string | number }) {
   return (
-    <View style={styles.card}>
-      <TouchableOpacity style={styles.cardHeader} onPress={onToggle}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <Text style={styles.chevron}>{expanded ? "▲" : "▼"}</Text>
-      </TouchableOpacity>
-      {expanded ? <View style={styles.cardBody}>{children}</View> : null}
+    <View style={styles.statRow}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
     </View>
   );
 }
 
 export default function SettingsModal({
   visible,
-  warehouse,
-  sticks,
-  racks,
+  space,
+  cards,
   alerts,
   userRole,
-  language,
-  onChangeLanguage,
-  onUpdateWarehouse,
   onOpenProfile,
   onOpenStaff,
-  onExportWarehouse,
   onClose,
 }: Props) {
-  const { t } = useLanguage();
-  const [overviewExpanded, setOverviewExpanded] = React.useState(true);
-  const [alertsExpanded, setAlertsExpanded] = React.useState(true);
-  const [layoutExpanded, setLayoutExpanded] = React.useState(false);
-
-  const singleStickArea = (warehouse?.stickWidth ?? 0) * (warehouse?.stickLength ?? 0);
-  const totalWarehouseArea = sticks.length * singleStickArea;
-  const occupiedArea = racks.reduce(
-    (sum, rack) => sum + ((rack.width ?? 0) * (rack.depth ?? 0)),
-    0,
-  );
-  const totalSpaceLeft = Math.max(0, totalWarehouseArea - occupiedArea);
-  const canEditLayout = userRole === "admin" || userRole === "edit";
-
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <Text style={styles.title}>{t("settings.title")}</Text>
-          <Text style={styles.subtitle}>{t("settings.subtitle")}</Text>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
+          <View style={styles.handle} />
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Settings</Text>
+            <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+              <Text style={styles.closeBtnText}>✕</Text>
+            </TouchableOpacity>
+          </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <SectionCard
-              title={t("settings.overview")}
-              expanded={overviewExpanded}
-              onToggle={() => setOverviewExpanded((current) => !current)}
-            >
-              <Text style={styles.dataLine}>
-                {t("settings.activeWarehouse")}: {warehouse?.name ?? t("settings.noWarehouse")}
-              </Text>
-              <Text style={styles.dataLine}>{t("settings.totalSticks")}: {sticks.length}</Text>
-              <Text style={styles.dataLine}>{t("settings.totalRacks")}: {racks.length}</Text>
-              <Text style={styles.dataLine}>{t("settings.spaceLeft")}: {totalSpaceLeft.toFixed(0)} sq ft</Text>
-            </SectionCard>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Space Overview */}
+            <Text style={styles.sectionHeader}>SPACE OVERVIEW</Text>
+            <View style={styles.card}>
+              {space ? (
+                <>
+                  <View style={styles.spaceNameRow}>
+                    <View style={styles.spaceIcon}>
+                      <Text style={styles.spaceIconText}>🏭</Text>
+                    </View>
+                    <View style={styles.spaceNameContent}>
+                      <Text style={styles.spaceNameText}>{space.name}</Text>
+                      <Text style={styles.spaceRoleText}>
+                        Role: <Text style={styles.roleChip}>{userRole.toUpperCase()}</Text>
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.divider} />
+                  <StatRow label="Cards" value={cards.length} />
+                  <StatRow label="Active Alerts" value={alerts.length} />
+                </>
+              ) : (
+                <View style={styles.noSpaceRow}>
+                  <Text style={styles.noSpaceText}>No space selected</Text>
+                  <Text style={styles.noSpaceHint}>
+                    Tap the space chip in the header to select or create one.
+                  </Text>
+                </View>
+              )}
+            </View>
 
-            <SectionCard
-              title={t("warehouse.medicineAlerts")}
-              expanded={alertsExpanded}
-              onToggle={() => setAlertsExpanded((current) => !current)}
-            >
+            {/* Alerts */}
+            <Text style={styles.sectionHeader}>ALERTS</Text>
+            <View style={styles.card}>
               {alerts.length === 0 ? (
-                <Text style={styles.helperText}>{t("settings.noAlerts")}</Text>
+                <Text style={styles.emptyText}>No active alerts right now.</Text>
               ) : (
                 alerts.map((alert) => (
-                  <View key={`${alert.rackId}-${alert.nextTriggerDate}`} style={styles.alertRow}>
-                    <Text style={styles.alertRowTitle}>
-                      {alert.rackName}
-                      {alert.material ? ` (${alert.material})` : ""} - {alert.stickName}
-                    </Text>
-                    <Text style={styles.alertRowText}>
-                      {alert.isDue ? t("warehouse.alertDue") : t("warehouse.alertUpcoming")}: {alert.nextTriggerDate}
-                    </Text>
+                  <View
+                    key={`${alert.cardId}-${alert.fieldId}`}
+                    style={[styles.alertRow, alert.isDue && styles.alertRowDue]}
+                  >
+                    <View style={[styles.alertDot, alert.isDue && styles.alertDotDue]} />
+                    <View style={styles.alertContent}>
+                      <Text style={[styles.alertName, alert.isDue && styles.alertNameDue]}>
+                        {alert.message}
+                      </Text>
+                      <Text style={styles.alertDate}>
+                        {new Date(alert.alertDate).toLocaleDateString(undefined, { dateStyle: "medium" })}
+                      </Text>
+                    </View>
                   </View>
                 ))
               )}
-            </SectionCard>
-
-            {warehouse ? (
-              <SectionCard
-                title={t("settings.stickLayout")}
-                expanded={layoutExpanded}
-                onToggle={() => setLayoutExpanded((current) => !current)}
-              >
-                <Text style={styles.helperText}>
-                  {t("settings.stickSize")}: {warehouse.stickWidth} ft x {warehouse.stickLength} ft
-                </Text>
-
-                <View style={styles.layoutRow}>
-                  <Text style={styles.dataLine}>{t("settings.rows")}: {warehouse.stickRows}</Text>
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity
-                      style={[styles.smallBtn, !canEditLayout && styles.disabledBtn]}
-                      disabled={!canEditLayout}
-                      onPress={() => onUpdateWarehouse({ stickRows: Math.max(1, warehouse.stickRows - 1) })}
-                    >
-                      <Text style={styles.smallBtnText}>-</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.smallBtn, !canEditLayout && styles.disabledBtn]}
-                      disabled={!canEditLayout}
-                      onPress={() => onUpdateWarehouse({ stickRows: warehouse.stickRows + 1 })}
-                    >
-                      <Text style={styles.smallBtnText}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <View style={styles.layoutRow}>
-                  <Text style={styles.dataLine}>{t("settings.columns")}: {warehouse.stickCols}</Text>
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity
-                      style={[styles.smallBtn, !canEditLayout && styles.disabledBtn]}
-                      disabled={!canEditLayout}
-                      onPress={() => onUpdateWarehouse({ stickCols: Math.max(1, warehouse.stickCols - 1) })}
-                    >
-                      <Text style={styles.smallBtnText}>-</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.smallBtn, !canEditLayout && styles.disabledBtn]}
-                      disabled={!canEditLayout}
-                      onPress={() => onUpdateWarehouse({ stickCols: warehouse.stickCols + 1 })}
-                    >
-                      <Text style={styles.smallBtnText}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </SectionCard>
-            ) : null}
-
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>{t("settings.language")}</Text>
-              <View style={styles.languageRow}>
-                <TouchableOpacity
-                  style={[styles.languageChip, language === "en" && styles.languageChipActive]}
-                  onPress={() => onChangeLanguage("en")}
-                >
-                  <Text style={language === "en" ? styles.languageChipTextActive : styles.languageChipText}>
-                    {t("settings.english")}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.languageChip, language === "hi" && styles.languageChipActive]}
-                  onPress={() => onChangeLanguage("hi")}
-                >
-                  <Text style={language === "hi" ? styles.languageChipTextActive : styles.languageChipText}>
-                    {t("settings.hindi")}
-                  </Text>
-                </TouchableOpacity>
-              </View>
             </View>
 
+            {/* Account */}
+            <Text style={styles.sectionHeader}>ACCOUNT</Text>
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>{t("settings.account")}</Text>
-              {warehouse ? (
-                <TouchableOpacity style={styles.secondaryBtn} onPress={onExportWarehouse}>
-                  <Text style={styles.secondaryText}>{t("settings.exportExcel")}</Text>
-                </TouchableOpacity>
-              ) : null}
-
-              <TouchableOpacity style={styles.primaryBtn} onPress={onOpenProfile}>
-                <Text style={styles.primaryText}>{t("settings.profile")}</Text>
+              <TouchableOpacity style={styles.actionBtn} onPress={onOpenProfile}>
+                <View style={styles.actionBtnIcon}><Text>👤</Text></View>
+                <Text style={styles.actionBtnText}>My Profile</Text>
+                <Text style={styles.actionBtnChevron}>›</Text>
               </TouchableOpacity>
 
-              {userRole === "admin" ? (
-                <TouchableOpacity style={styles.secondaryBtn} onPress={onOpenStaff}>
-                  <Text style={styles.secondaryText}>{t("settings.staff")}</Text>
+              {userRole === "admin" && (
+                <TouchableOpacity style={[styles.actionBtn, styles.actionBtnBordered]} onPress={onOpenStaff}>
+                  <View style={styles.actionBtnIcon}><Text>👥</Text></View>
+                  <Text style={styles.actionBtnText}>Staff Management</Text>
+                  <Text style={styles.actionBtnChevron}>›</Text>
                 </TouchableOpacity>
-              ) : null}
+              )}
             </View>
           </ScrollView>
-
-          <TouchableOpacity onPress={onClose}>
-            <Text style={styles.closeText}>{t("common.close")}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  backdrop: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.42)",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
   },
-  modal: {
-    width: "92%",
-    maxHeight: "84%",
-    backgroundColor: "#FFFDF7",
-    borderRadius: 20,
-    padding: 20,
+  sheet: {
+    backgroundColor: "#F5F7FA",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "88%",
+    paddingBottom: 32,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#5E3F00",
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#BDBDBD",
+    alignSelf: "center",
+    marginTop: 10,
     marginBottom: 4,
   },
-  subtitle: {
-    color: "#6D654E",
-    marginBottom: 14,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E8ECF4",
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1A237E",
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F0F0F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  closeBtnText: {
+    fontSize: 14,
+    color: "#616161",
+    fontWeight: "700",
+  },
+  scrollContent: {
+    padding: 16,
+    gap: 8,
+    paddingBottom: 16,
+  },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#9E9E9E",
+    letterSpacing: 1,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 4,
   },
   card: {
     backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E9D5A1",
     borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  cardBody: {
-    marginTop: 10,
-  },
-  sectionTitle: {
-    fontWeight: "700",
-    color: "#7A5200",
-  },
-  chevron: {
-    color: "#7A5200",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  helperText: {
-    color: "#6D654E",
-    marginBottom: 12,
-  },
-  languageRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 8,
-  },
-  languageChip: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: "#FFF4CC",
-    alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E9D5A1",
+    borderColor: "#E8ECF4",
+    overflow: "hidden",
   },
-  languageChipActive: {
-    backgroundColor: "#C98B00",
-    borderColor: "#C98B00",
-  },
-  languageChipText: {
-    color: "#6B4C00",
-    fontWeight: "700",
-  },
-  languageChipTextActive: {
-    color: "#FFF8E3",
-    fontWeight: "700",
-  },
-  dataLine: {
-    color: "#3E2A00",
-    marginBottom: 6,
-  },
-  layoutRow: {
+  spaceNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
+    gap: 12,
+    padding: 16,
   },
-  actionRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  smallBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "#FFF4CC",
+  spaceIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#E3F2FD",
     alignItems: "center",
     justifyContent: "center",
   },
-  smallBtnText: {
-    fontSize: 20,
-    color: "#6B4C00",
+  spaceIconText: {
+    fontSize: 22,
+  },
+  spaceNameContent: {
+    flex: 1,
+    gap: 3,
+  },
+  spaceNameText: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#212121",
+  },
+  spaceRoleText: {
+    fontSize: 12,
+    color: "#757575",
+  },
+  roleChip: {
+    color: "#1565C0",
     fontWeight: "700",
   },
-  disabledBtn: {
-    opacity: 0.45,
+  divider: {
+    height: 1,
+    backgroundColor: "#F0F0F0",
+    marginHorizontal: 16,
+  },
+  statRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderTopWidth: 1,
+    borderTopColor: "#F5F5F5",
+  },
+  statLabel: {
+    fontSize: 14,
+    color: "#616161",
+  },
+  statValue: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#212121",
+  },
+  noSpaceRow: {
+    padding: 20,
+    alignItems: "center",
+    gap: 6,
+  },
+  noSpaceText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#9E9E9E",
+  },
+  noSpaceHint: {
+    fontSize: 13,
+    color: "#BDBDBD",
+    textAlign: "center",
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#9E9E9E",
+    textAlign: "center",
+    padding: 20,
   },
   alertRow: {
-    backgroundColor: "#FFF9EC",
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#F1E2B4",
-    marginBottom: 8,
-  },
-  alertRowTitle: {
-    color: "#5B3D00",
-    fontWeight: "700",
-    marginBottom: 2,
-  },
-  alertRowText: {
-    color: "#6D654E",
-  },
-  primaryBtn: {
-    backgroundColor: "#C98B00",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F5F5F5",
+  },
+  alertRowDue: {
+    backgroundColor: "#FFF3E0",
+  },
+  alertDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#2196F3",
+    marginTop: 5,
+    flexShrink: 0,
+  },
+  alertDotDue: {
+    backgroundColor: "#F44336",
+  },
+  alertContent: {
+    flex: 1,
+    gap: 2,
+  },
+  alertName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#212121",
+    lineHeight: 18,
+  },
+  alertNameDue: {
+    color: "#C62828",
+  },
+  alertDate: {
+    fontSize: 11,
+    color: "#757575",
+    marginTop: 2,
+  },
+  actionBtn: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  primaryText: {
-    color: "#FFF8E3",
-    fontWeight: "700",
+  actionBtnBordered: {
+    borderTopWidth: 1,
+    borderTopColor: "#F5F5F5",
   },
-  secondaryBtn: {
-    backgroundColor: "#FFF4CC",
-    paddingVertical: 12,
-    borderRadius: 12,
+  actionBtnIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#F5F7FA",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E9D5A1",
-    marginBottom: 10,
+    justifyContent: "center",
   },
-  secondaryText: {
-    color: "#6B4C00",
-    fontWeight: "700",
+  actionBtnText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#212121",
   },
-  closeText: {
-    textAlign: "center",
-    color: "#7A5200",
-    fontWeight: "700",
-    marginTop: 4,
+  actionBtnChevron: {
+    fontSize: 22,
+    color: "#BDBDBD",
+    fontWeight: "300",
   },
 });

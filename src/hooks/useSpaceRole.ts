@@ -3,15 +3,15 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { useEffect, useState } from "react";
 
 import { auth, db } from "../firebase/config";
-import { Warehouse, WarehouseRole } from "../types/warehouse";
+import { Space, SpaceRole } from "../types/index";
 
-export function useUserRole(warehouse: Warehouse | null) {
-  const [role, setRole] = useState<WarehouseRole>("view");
+export function useSpaceRole(space: Space | null) {
+  const [role, setRole] = useState<SpaceRole>("view");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!warehouse) {
+    if (!space) {
       setRole("view");
       setError(null);
       setLoading(false);
@@ -21,6 +21,8 @@ export function useUserRole(warehouse: Warehouse | null) {
     let unsubscribeRole: (() => void) | undefined;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubscribeRole?.();
+
       if (!user) {
         setRole("view");
         setError(null);
@@ -28,7 +30,7 @@ export function useUserRole(warehouse: Warehouse | null) {
         return;
       }
 
-      if (warehouse.ownerId === user.uid) {
+      if (space.ownerId === user.uid) {
         setRole("admin");
         setError(null);
         setLoading(false);
@@ -36,15 +38,15 @@ export function useUserRole(warehouse: Warehouse | null) {
       }
 
       unsubscribeRole = onSnapshot(
-        doc(db, "warehouseMembers", `${warehouse.id}_${user.uid}`),
-        (snapshot) => {
-          setRole((snapshot.data()?.role as WarehouseRole | undefined) ?? "view");
+        doc(db, "spaceMembers", `${space.id}_${user.uid}`),
+        (snap) => {
+          setRole((snap.data()?.role as SpaceRole | undefined) ?? "view");
           setError(null);
           setLoading(false);
         },
-        (snapshotError) => {
+        (err) => {
           setRole("view");
-          setError(snapshotError.message);
+          setError(err.message);
           setLoading(false);
         },
       );
@@ -54,7 +56,7 @@ export function useUserRole(warehouse: Warehouse | null) {
       unsubscribeAuth();
       unsubscribeRole?.();
     };
-  }, [warehouse]);
+  }, [space]);
 
   return { role, loading, error };
 }

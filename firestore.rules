@@ -5,38 +5,29 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function warehouseDoc(warehouseId) {
-      return get(/databases/$(database)/documents/warehouses/$(warehouseId));
+    function spaceDoc(spaceId) {
+      return get(/databases/$(database)/documents/spaces/$(spaceId));
     }
 
-    function isOwner(warehouseId) {
+    function isSpaceOwner(spaceId) {
       return signedIn() &&
-        warehouseDoc(warehouseId).data.ownerId == request.auth.uid;
+        spaceDoc(spaceId).data.ownerId == request.auth.uid;
     }
 
-    function isMember(warehouseId) {
+    function isSpaceMember(spaceId) {
       return signedIn() &&
-        exists(/databases/$(database)/documents/warehouseMembers/$(warehouseId + "_" + request.auth.uid));
+        exists(/databases/$(database)/documents/spaceMembers/$(spaceId + "_" + request.auth.uid));
     }
 
-    function canAccessWarehouse(warehouseId) {
-      return isOwner(warehouseId) || isMember(warehouseId);
+    function canAccessSpace(spaceId) {
+      return isSpaceOwner(spaceId) || isSpaceMember(spaceId);
     }
 
-    function validWarehouseIdOnCreate() {
-      return request.resource.data.warehouseId is string;
-    }
-
-    function ownerCanCreateInWarehouse() {
-      return signedIn() &&
-        validWarehouseIdOnCreate() &&
-        isOwner(request.resource.data.warehouseId);
-    }
-
-    function ownerCanEditWarehouseResource() {
-      return signedIn() &&
-        resource.data.warehouseId is string &&
-        isOwner(resource.data.warehouseId);
+    function canEditSpace(spaceId) {
+      return isSpaceOwner(spaceId) || (
+        isSpaceMember(spaceId) &&
+        get(/databases/$(database)/documents/spaceMembers/$(spaceId + "_" + request.auth.uid)).data.role == "edit"
+      );
     }
 
     match /users/{userId} {
@@ -52,36 +43,35 @@ service cloud.firestore {
       allow update, delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
-    match /warehouses/{warehouseId} {
-      allow read: if signedIn() &&
-        (
-          resource.data.ownerId == request.auth.uid ||
-          isMember(warehouseId)
-        );
+    match /spaces/{spaceId} {
+      allow read: if signedIn() && (
+        resource.data.ownerId == request.auth.uid ||
+        isSpaceMember(spaceId)
+      );
       allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
 
-    match /sticks/{stickId} {
+    match /cards/{cardId} {
       allow read: if signedIn() &&
-        resource.data.warehouseId is string &&
-        canAccessWarehouse(resource.data.warehouseId);
-      allow create: if ownerCanCreateInWarehouse();
-      allow update, delete: if ownerCanEditWarehouseResource();
+        resource.data.spaceId is string &&
+        canAccessSpace(resource.data.spaceId);
+      allow create: if signedIn() &&
+        request.resource.data.spaceId is string &&
+        canEditSpace(request.resource.data.spaceId);
+      allow update, delete: if signedIn() &&
+        resource.data.spaceId is string &&
+        canEditSpace(resource.data.spaceId);
     }
 
-    match /racks/{rackId} {
-      allow read: if signedIn() &&
-        resource.data.warehouseId is string &&
-        canAccessWarehouse(resource.data.warehouseId);
-      allow create: if ownerCanCreateInWarehouse();
-      allow update, delete: if ownerCanEditWarehouseResource();
-    }
-
-    match /warehouseMembers/{memberId} {
+    match /spaceMembers/{memberId} {
       allow read: if signedIn();
-      allow create: if ownerCanCreateInWarehouse();
-      allow update, delete: if ownerCanEditWarehouseResource();
+      allow create: if signedIn() &&
+        request.resource.data.spaceId is string &&
+        isSpaceOwner(request.resource.data.spaceId);
+      allow update, delete: if signedIn() &&
+        resource.data.spaceId is string &&
+        isSpaceOwner(resource.data.spaceId);
     }
   }
 }

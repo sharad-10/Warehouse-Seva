@@ -1,114 +1,69 @@
 import React from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { useLanguage } from "@/src/i18n/LanguageContext";
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Props = {
-  openQuickAdd: () => void;
-  openSettings: () => void;
-  searchQuery: string;
-  setSearchQuery: (value: string) => void;
+  spaceName: string | null;
+  onOpenSpaceSheet: () => void;
 };
 
-/* =========================
-   Component
-========================= */
-
-export default function HeaderBar({
-  openQuickAdd,
-  openSettings,
-  searchQuery,
-  setSearchQuery,
-}: Props) {
-  const { t } = useLanguage();
+export default function HeaderBar({ spaceName, onOpenSpaceSheet }: Props) {
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.headerWrap}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={openQuickAdd} style={styles.iconBtn}>
-          <Text style={styles.iconText}>+</Text>
-        </TouchableOpacity>
+    <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <Text style={styles.title}>Warehouse Seva</Text>
 
-        <Text style={styles.appTitle}>{t("app.title")}</Text>
-
-        <TouchableOpacity
-          onPress={openSettings}
-          style={[styles.iconBtn, styles.settingsBtn]}
-        >
-          <Text style={styles.settingsIcon}>⚙</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.searchRow}>
-        <TextInput
-          style={styles.searchInput}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder={t("header.searchStick")}
-          placeholderTextColor="#907B45"
-        />
-      </View>
+      <TouchableOpacity style={styles.spaceChip} onPress={onOpenSpaceSheet}>
+        <Text style={styles.spaceChipText} numberOfLines={1}>
+          {spaceName ?? "Select Space"}
+        </Text>
+        <Text style={styles.spaceChipIcon}>▾</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
-/* =========================
-   Styles
-========================= */
-
 const styles = StyleSheet.create({
-  headerWrap: {
-    backgroundColor: "#C98B00",
-    paddingBottom: 12,
-  },
   header: {
-    minHeight: 70,
+    backgroundColor: "#1A237E",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 10,
   },
-  iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: "#FFF4CC",
+  title: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  spaceChip: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    maxWidth: 140,
+    gap: 4,
+    flexShrink: 0,
   },
-  iconText: {
-    fontSize: 28,
-    lineHeight: 28,
-    fontWeight: "700",
-    color: "#5A3B00",
+  spaceChipText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+    flexShrink: 1,
   },
-  settingsBtn: {
-    marginLeft: "auto",
-  },
-  appTitle: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    textAlign: "center",
-    color: "#FFF8E3",
-    fontSize: 20,
-    fontWeight: "700",
-    pointerEvents: "none",
-  },
-  settingsIcon: {
-    fontSize: 22,
-    lineHeight: 22,
-    color: "#5A3B00",
-  },
-  searchRow: {
-    paddingHorizontal: 15,
-  },
-  searchInput: {
-    backgroundColor: "#FFF4CC",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: "#4D3300",
-    borderWidth: 1,
-    borderColor: "#E7C86E",
+  spaceChipIcon: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 10,
+    flexShrink: 0,
   },
 });

@@ -10,7 +10,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sharad2429.warehouseseva"
     },
     "android": {
       "package": "com.sharad2429.warehouseseva",
