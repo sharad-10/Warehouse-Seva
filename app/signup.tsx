@@ -5,7 +5,6 @@ import React from "react";
 import {
   Alert,
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -80,7 +79,7 @@ export default function SignupScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
     >
       <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
         <View style={styles.logoCircle}>

@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -54,7 +55,8 @@ export default function StaffModal({
 }: Props) {
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <Pressable style={styles.backdrop} onPress={() => { Keyboard.dismiss(); onClose(); }}>
+      <KeyboardAvoidingView style={styles.backdrop} behavior="padding">
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => { Keyboard.dismiss(); onClose(); }} />
         <Pressable style={styles.sheet} onPress={() => {}}>
           {/* Handle */}
           <View style={styles.handle} />
@@ -214,7 +216,7 @@ export default function StaffModal({
             )}
           </ScrollView>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

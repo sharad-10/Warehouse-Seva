@@ -3,6 +3,7 @@ import React from "react";
 import {
   Alert,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -287,7 +288,8 @@ export default function CardModal({ visible, editingCard, spaceName, onSave, onD
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <Pressable style={styles.backdrop} onPress={handleBackOrClose}>
+      <KeyboardAvoidingView style={styles.backdrop} behavior="padding">
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleBackOrClose} />
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
 
@@ -340,7 +342,7 @@ export default function CardModal({ visible, editingCard, spaceName, onSave, onD
             </View>
           )}
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

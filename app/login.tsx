@@ -5,7 +5,6 @@ import React from "react";
 import {
   Alert,
   KeyboardAvoidingView,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -92,7 +91,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior="padding"
     >
       {/* Branded header */}
       <View style={[styles.header, { paddingTop: insets.top + 32 }]}>

@@ -2,6 +2,7 @@ import React from "react";
 import {
   Alert,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   ScrollView,
@@ -55,7 +56,8 @@ export default function SpaceSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <Pressable style={styles.backdrop} onPress={() => { Keyboard.dismiss(); onClose(); }}>
+      <KeyboardAvoidingView style={styles.backdrop} behavior="padding">
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => { Keyboard.dismiss(); onClose(); }} />
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
 
@@ -66,7 +68,7 @@ export default function SpaceSheet({
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll} keyboardShouldPersistTaps="handled">
             {spaces.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>🏗</Text>
@@ -138,7 +140,7 @@ export default function SpaceSheet({
             </View>
           </ScrollView>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
