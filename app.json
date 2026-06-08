@@ -11,7 +11,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sharad2429.warehouseseva"
+      "bundleIdentifier": "com.sharad2429.warehouseseva",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.sharad2429.warehouseseva",

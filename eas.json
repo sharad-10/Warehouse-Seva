@@ -9,9 +9,19 @@
         "buildType": "apk"
       }
     },
+    "testflight": {
+      "distribution": "store",
+      "ios": {
+        "buildConfiguration": "Release"
+      }
+    },
     "production": {
+      "distribution": "store",
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
       }
     }
   }
