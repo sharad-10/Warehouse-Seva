@@ -73,5 +73,18 @@ service cloud.firestore {
         resource.data.spaceId is string &&
         isSpaceOwner(resource.data.spaceId);
     }
+
+    match /freeSpaces/{listingId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.contactPhone is string;
+      allow update: if signedIn()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == request.auth.uid;
+      allow delete: if signedIn()
+        && resource.data.ownerId == request.auth.uid;
+    }
   }
 }

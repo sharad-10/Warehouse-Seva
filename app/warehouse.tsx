@@ -4,14 +4,17 @@ import SettingsModal from "@/src/components/modals/SettingsModal";
 import StaffModal from "@/src/components/modals/StaffModal";
 import SpaceSheet from "@/src/components/modals/SpaceSheet";
 import CardModal from "@/src/components/modals/CardModal";
+import FreeSpaceModal from "@/src/components/modals/FreeSpaceModal";
 import HomeTab from "@/src/components/tabs/HomeTab";
 import AlertsTab from "@/src/components/tabs/AlertsTab";
+import FreeSpacesTab from "@/src/components/tabs/FreeSpacesTab";
 import { auth, db } from "@/src/firebase/config";
 import { useCards } from "@/src/hooks/useCards";
 import { useSpaceRole } from "@/src/hooks/useSpaceRole";
 import { useSpaces } from "@/src/hooks/useSpaces";
 import { useSpaceStaff } from "@/src/hooks/useSpaceStaff";
-import { Card, CardField, SpaceRole } from "@/src/types/index";
+import { useFreeSpaces } from "@/src/hooks/useFreeSpaces";
+import { Card, CardField, FreeSpace, SpaceRole } from "@/src/types/index";
 import { getAlertPreviews } from "@/src/utils/cardAlerts";
 import { useRouter } from "expo-router";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
@@ -27,17 +30,19 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-type TabType = "home" | "alerts" | "settings";
+type TabType = "home" | "alerts" | "freespaces" | "settings";
 
 const TAB_ICONS: Record<TabType, string> = {
   home: "🏠",
   alerts: "🔔",
+  freespaces: "🏭",
   settings: "⚙",
 };
 
 const TAB_LABELS: Record<TabType, string> = {
   home: "Home",
   alerts: "Alerts",
+  freespaces: "Spaces",
   settings: "Settings",
 };
 
@@ -56,6 +61,8 @@ export default function MainScreen() {
   const [settingsVisible, setSettingsVisible] = React.useState(false);
   const [profileVisible, setProfileVisible] = React.useState(false);
   const [staffVisible, setStaffVisible] = React.useState(false);
+  const [freeSpaceModalVisible, setFreeSpaceModalVisible] = React.useState(false);
+  const [editingFreeSpace, setEditingFreeSpace] = React.useState<FreeSpace | null>(null);
 
   const [spaceNameDraft, setSpaceNameDraft] = React.useState("");
   const [profileName, setProfileName] = React.useState("");
@@ -66,6 +73,7 @@ export default function MainScreen() {
   const [inviteRole, setInviteRole] = React.useState<SpaceRole>("edit");
 
   const { spaces, loading: spacesLoading, error: spacesError, addSpace, updateSpace, deleteSpace } = useSpaces();
+  const { freeSpaces, loading: freeSpacesLoading, error: freeSpacesError, addFreeSpace, updateFreeSpace, deleteFreeSpace } = useFreeSpaces();
   const currentSpace = spaces.find((s) => s.id === selectedSpaceId) ?? null;
   const { role, loading: roleLoading } = useSpaceRole(currentSpace);
   const { cards, error: cardsError, addCard, updateCard, deleteCard } = useCards(selectedSpaceId);
@@ -161,6 +169,39 @@ export default function MainScreen() {
     setEditingCard(null);
   };
 
+  const handleOpenFreeSpaceCreate = () => {
+    setEditingFreeSpace(null);
+    setFreeSpaceModalVisible(true);
+  };
+
+  const handleOpenFreeSpaceEdit = (item: FreeSpace) => {
+    setEditingFreeSpace(item);
+    setFreeSpaceModalVisible(true);
+  };
+
+  const handleSaveFreeSpace = async (
+    data: Omit<FreeSpace, "id" | "ownerId" | "ownerName" | "createdAt">,
+  ) => {
+    if (editingFreeSpace) {
+      await updateFreeSpace(editingFreeSpace.id, data);
+    } else {
+      await addFreeSpace(data);
+    }
+    setFreeSpaceModalVisible(false);
+    setEditingFreeSpace(null);
+  };
+
+  const handleDeleteFreeSpace = async (id: string) => {
+    await deleteFreeSpace(id);
+  };
+
+  const handleDeleteEditingFreeSpace = async () => {
+    if (!editingFreeSpace) return;
+    await deleteFreeSpace(editingFreeSpace.id);
+    setFreeSpaceModalVisible(false);
+    setEditingFreeSpace(null);
+  };
+
   const handleLogout = async () => {
     await signOut(auth);
     router.replace("/login");
@@ -213,6 +254,16 @@ export default function MainScreen() {
       />
     ),
     alerts: <AlertsTab cards={cards} />,
+    freespaces: (
+      <FreeSpacesTab
+        freeSpaces={freeSpaces}
+        loading={freeSpacesLoading}
+        currentUserId={firebaseUser?.uid ?? ""}
+        onPostNew={handleOpenFreeSpaceCreate}
+        onEditItem={handleOpenFreeSpaceEdit}
+        onDeleteItem={handleDeleteFreeSpace}
+      />
+    ),
     settings: null,
   };
 
@@ -228,9 +279,9 @@ export default function MainScreen() {
       />
 
       {/* Error banner */}
-      {(spacesError || cardsError) && (
+      {(spacesError || cardsError || freeSpacesError) && (
         <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{spacesError ?? cardsError}</Text>
+          <Text style={styles.errorText}>{spacesError ?? cardsError ?? freeSpacesError}</Text>
         </View>
       )}
 
@@ -335,6 +386,19 @@ export default function MainScreen() {
         onUpdateRole={(memberId, r) => void updateMemberRole(memberId, r)}
         onRemove={(memberId) => void removeMember(memberId)}
         onClose={() => setStaffVisible(false)}
+      />
+
+      <FreeSpaceModal
+        visible={freeSpaceModalVisible}
+        editingItem={editingFreeSpace}
+        currentUserEmail={firebaseUser?.email ?? ""}
+        onSave={(data) => void handleSaveFreeSpace(data)}
+        onDelete={
+          editingFreeSpace && editingFreeSpace.ownerId === firebaseUser?.uid
+            ? () => void handleDeleteEditingFreeSpace()
+            : undefined
+        }
+        onClose={() => { setFreeSpaceModalVisible(false); setEditingFreeSpace(null); }}
       />
     </View>
   );

@@ -32,3 +32,18 @@ export interface SpaceMember {
   email: string;
   role: SpaceRole;
 }
+
+export interface FreeSpace {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  title: string;
+  city: string;
+  address: string;
+  areaSqm: number;
+  goodsTypes: string;
+  contactPhone: string;
+  contactEmail: string;
+  notes: string;
+  createdAt: string;
+}
